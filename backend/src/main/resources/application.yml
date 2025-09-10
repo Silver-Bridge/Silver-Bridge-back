@@ -1,0 +1,33 @@
+#  DB 접속 정보
+  #  url: localhost:3306/silverbridge (DB명 silverbridge)
+  #  username/password: root/password 기본값
+#  JPA ddl-auto
+  #  개발: update (엔티티 바뀌면 테이블 자동 변경)
+  #  운영: validate (스키마만 검증)
+#  logging
+  #  Hibernate 실행 쿼리 로그까지 확인 가능
+
+spring:
+  application:
+    name: silverbridge-backend
+
+  datasource:
+    url: jdbc:mariadb://localhost:3306/silverbridge?useUnicode=true&characterEncoding=utf8
+    username: silveruser         # 공용 ID
+    password: silverpass         # 공용 PW
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update           # 개발용: update, 운영은 validate 권장
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
