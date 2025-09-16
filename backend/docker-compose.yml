@@ -1,0 +1,14 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: silverbridge_db_container
+    ports:
+      - "3306:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=silverbridge_db
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:
