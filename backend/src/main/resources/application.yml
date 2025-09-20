@@ -13,8 +13,8 @@ spring:
 
   datasource:
     url: jdbc:mariadb://localhost:3306/silverbridge_db
-    username: root #${DB_USER_ID}
-    password: Chlalstjek1! #${DB_USER_PASSWORD}
+    username: root
+    password: ${DB_ROOT_PASSWORD}
     driver-class-name: org.mariadb.jdbc.Driver
 
   jpa:
@@ -31,3 +31,6 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
