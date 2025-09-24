@@ -24,7 +24,9 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final PasswordEncoder passwordEncoder;
 
-    public SecurityConfig(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder) {
+    public SecurityConfig(JwtTokenProvider jwtTokenProvider,
+                          CustomUserDetailsService customUserDetailsService,
+                          PasswordEncoder passwordEncoder) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.customUserDetailsService = customUserDetailsService;
         this.passwordEncoder = passwordEncoder;
@@ -33,23 +35,31 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(customUserDetailsService); // CustomUserDetailsService 설정
-        provider.setPasswordEncoder(passwordEncoder); // PasswordEncoder 설정
+        provider.setUserDetailsService(customUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(provider);
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // CSRF 보호 기능 비활성화
-                .sessionManagement(sessionManagement ->
-                        sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                ) // 세션 정책 STATELESS 설정
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/api/users/join", "/api/users/login").permitAll() // 인증 없이 허용
-                        .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(
+//                                "/",
+//                                "/api/users/join",
+//                                "/api/users/login",
+//                                "/api/health",
+//                                "/api/calendar/**"      // 캘린더 API 허용
+//                        ).permitAll()
+//                        .anyRequest().authenticated()
+                                .anyRequest().permitAll()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class); // JWT 필터 추가
+                .addFilterBefore(
+                        new JwtAuthenticationFilter(jwtTokenProvider),
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
