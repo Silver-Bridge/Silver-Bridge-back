@@ -2,14 +2,15 @@ services:
   mariadb:
     image: mariadb:11.4
     container_name: silverbridge_db_container
-    restart: unless-stopped
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "3306:3306"
     environment:
-      MYSQL_DATABASE: "${DB_NAME}"
-      MYSQL_ROOT_PASSWORD: "${DB_PASS}"
-      TZ: "${TZ:-Asia/Seoul}"
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=silverbridge_db
+      #- MARIADB_USER=${DB_USER_ID}            # 사용자명 설정
+      #- MARIADB_PASSWORD=${DB_USER_PASSWORD}  # 사용자 비번 설정
     volumes:
-      - dbdata:/var/lib/mysql
+      - mariadb_data:/var/lib/mysql
+
 volumes:
-  dbdata:
+  mariadb_data:
