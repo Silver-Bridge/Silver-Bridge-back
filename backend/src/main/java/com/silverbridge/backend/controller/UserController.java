@@ -2,6 +2,7 @@ package com.silverbridge.backend.controller;
 
 import com.silverbridge.backend.dto.JoinRequest;
 import com.silverbridge.backend.dto.LoginRequest;
+import com.silverbridge.backend.dto.LogoutRequest;
 import com.silverbridge.backend.dto.TokenDto;
 import com.silverbridge.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -56,4 +57,15 @@ public class UserController {
             return new ResponseEntity<>("아이디 또는 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
         }
     }
+
+		// 로그아웃
+	  @PostMapping("/logout")
+		public ResponseEntity<String> logout(@RequestBody LogoutRequest request) {
+			try {
+				userService.logout(request.getRefreshToken()); // DB에 저장된 리프레시 토큰 삭제
+				return ResponseEntity.ok("로그아웃 성공"); // 로그아웃 성공 응답 => 프론트엔드는 로컬에 저장된 토큰을 삭제해야 함
+			} catch (IllegalArgumentException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); // 유효하지 않은 토큰인 경우 처리
+			}
+		}
 }

@@ -34,6 +34,7 @@ public class UserService {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
+		// 회원가입 메서드
     @Transactional
     public void join(JoinRequest request) {
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
@@ -53,7 +54,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    // login 메서드에서는 토큰 생성만 담당
+    // 로그인 메서드는 토큰 생성만 담당
     @Transactional
     public TokenDto generateTokens(String phoneNumber) {
         User user = userRepository.findByPhoneNumber(phoneNumber)
@@ -74,11 +75,18 @@ public class UserService {
                                 .build()
                 )
         );
-
         return TokenDto.builder()
                 .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
     }
+
+		// 로그아웃 메서드
+		@Transactional
+		public void logout(String refreshTokenValue) {
+				RefreshToken refreshToken = refreshTokenRepository.findByRefreshToken(refreshTokenValue)
+								.orElseThrow(() -> new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.")); // 400 Bad Request
+				refreshTokenRepository.delete(refreshToken); // DB에서 리프레시 토큰 삭제
+		}
 }
