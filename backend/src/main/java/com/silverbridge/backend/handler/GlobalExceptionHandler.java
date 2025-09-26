@@ -26,22 +26,31 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            if (fieldName.equals("password")) responseBody.put("code", 601);
-            else if (fieldName.equals("email")) responseBody.put("code", 602);
+            if (fieldName.equals("phoneNumber")) responseBody.put("code", 607);
+            else if (fieldName.equals("password")) responseBody.put("code", 601);
             else if (fieldName.equals("name")) responseBody.put("code", 603);
             else if (fieldName.equals("birth")) responseBody.put("code", 605);
             else if (fieldName.equals("gender")) responseBody.put("code", 606);
-            else if (fieldName.equals("phoneNumber")) responseBody.put("code", 607);
         });
 
         return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
     }
+		// 702: 중복된 전화번호
+		@ExceptionHandler(IllegalArgumentException.class)
+		public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
+			Map<String, Object> responseBody = new HashMap<>();
+			String message = ex.getMessage();
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("code", ex.getMessage().contains("이메일") ? 701 : 702);
-        responseBody.put("message", ex.getMessage());
-        return new ResponseEntity<>(responseBody, HttpStatus.CONFLICT);
-    }
+			// 메시지에 "전화번호"가 포함된 경우 702, 그 외는 일반 400 오류 메시지 처리
+			if (message.contains("전화번호")) {
+				responseBody.put("code", 702);
+				responseBody.put("message", message);
+				return new ResponseEntity<>(responseBody, HttpStatus.CONFLICT); // 409 CONFLICT
+			} else {
+				// 로그인 실패 ("아이디 또는 비밀번호 불일치") 와 같은 기타 IllegalArgumentException 처리
+				responseBody.put("code", 400);
+				responseBody.put("message", message);
+				return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
+			}
+		}
 }

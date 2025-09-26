@@ -36,12 +36,11 @@ public class UserController {
     }
 
     // 로그인
-    // 로그인
     @PostMapping("/login")
     public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
         try {
             UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
+                    new UsernamePasswordAuthenticationToken(request.getPhoneNumber(), request.getPassword());
 
             Authentication authentication = authenticationManager.authenticate(authenticationToken);
 

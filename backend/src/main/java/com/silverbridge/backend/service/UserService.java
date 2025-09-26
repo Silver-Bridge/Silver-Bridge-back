@@ -36,18 +36,14 @@ public class UserService {
 
     @Transactional
     public void join(JoinRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
-        }
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
             throw new IllegalArgumentException("이미 존재하는 전화번호입니다.");
         }
 
         User user = new User(
                 request.getName(),
-                request.getEmail(),
+								request.getPhoneNumber(),
                 passwordEncoder.encode(request.getPassword()),
-                request.getPhoneNumber(),
                 request.getBirth(),
                 request.getGender(),
                 request.getSocial(),
@@ -59,12 +55,12 @@ public class UserService {
 
     // login 메서드에서는 토큰 생성만 담당
     @Transactional
-    public TokenDto generateTokens(String email) {
-        User user = userRepository.findByEmail(email)
+    public TokenDto generateTokens(String phoneNumber) {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다."));
 
         // JWT 토큰 생성을 위한 Authentication 객체 수동 생성
-        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword(), Collections.emptyList());
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getPhoneNumber(), user.getPassword(), Collections.emptyList());
 
         String accessToken = jwtTokenProvider.createAccessToken(authentication);
         String refreshToken = jwtTokenProvider.createRefreshToken();

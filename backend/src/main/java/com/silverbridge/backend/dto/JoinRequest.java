@@ -12,10 +12,6 @@ public class JoinRequest {
     @Pattern(regexp = "^[가-힣]+$", message = "이름은 한글만 가능합니다.")
     private String name;
 
-    @Email(message = "잘못된 이메일 양식입니다.")
-    @NotBlank(message = "이메일은 필수 입력 값입니다.")
-    private String email;
-
     @Size(min = 8, max = 20, message = "비밀번호의 길이는 최소 8자 이상 최대 20자 이하입니다.")
     @Pattern(regexp = "(?=.*[a-zA-Z])(?=.*[0-9]).*", message = "비밀번호는 문자, 숫자를 포함해야 합니다.")
     private String password;

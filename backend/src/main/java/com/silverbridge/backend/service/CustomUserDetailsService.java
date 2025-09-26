@@ -17,16 +17,16 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String phoneNumber) throws UsernameNotFoundException {
+        return userRepository.findByPhoneNumber(phoneNumber)
                 .map(this::createUserDetails)
-                .orElseThrow(() -> new UsernameNotFoundException(email + " -> 데이터베이스에서 찾을 수 없습니다."));
+                .orElseThrow(() -> new UsernameNotFoundException(phoneNumber + " -> 데이터베이스에서 찾을 수 없습니다."));
     }
 
     private UserDetails createUserDetails(User user) {
         // Spring Security의 User 객체를 생성하여 반환
         return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
+                user.getPhoneNumber(),
                 user.getPassword(),
                 Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
         );

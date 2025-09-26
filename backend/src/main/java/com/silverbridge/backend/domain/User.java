@@ -18,14 +18,11 @@ public class User {
 
     private String name;
 
-    @Column(unique = true, nullable = false)
-    private String email;
+		@Column(unique = true, nullable = false)
+		private String phoneNumber;
 
-    @Column(nullable = false)
+		@Column(nullable = false)
     private String password;
-
-    @Column(unique = true, nullable = false)
-    private String phoneNumber;
 
     private String birth;
     private Boolean gender;
@@ -33,11 +30,10 @@ public class User {
     private String region;
     private String textsize;
 
-    public User(String name, String email, String password, String phoneNumber, String birth, Boolean gender, Boolean social, String region, String textsize) {
+    public User(String name, String phoneNumber, String password, String birth, Boolean gender, Boolean social, String region, String textsize) {
         this.name = name;
-        this.email = email;
+				this.phoneNumber = phoneNumber;
         this.password = password;
-        this.phoneNumber = phoneNumber;
         this.birth = birth;
         this.gender = gender;
         this.social = social;
