@@ -13,6 +13,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.Collections;
 import org.springframework.security.core.Authentication;
 
@@ -34,7 +36,7 @@ public class UserService {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-		// 회원가입 메서드
+	// 회원가입 메서드
     @Transactional
     public void join(JoinRequest request) {
         if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
@@ -43,7 +45,7 @@ public class UserService {
 
         User user = new User(
                 request.getName(),
-								request.getPhoneNumber(),
+				request.getPhoneNumber(),
                 passwordEncoder.encode(request.getPassword()),
                 request.getBirth(),
                 request.getGender(),
@@ -66,13 +68,17 @@ public class UserService {
         String accessToken = jwtTokenProvider.createAccessToken(authentication);
         String refreshToken = jwtTokenProvider.createRefreshToken();
 
+		LocalDateTime expiryDate = LocalDateTime.now().plusDays(7); // 7일
+
+		// DB에 리프레시 토큰 저장 (기존 토큰이 있으면 업데이트, 없으면 새로 생성)
         refreshTokenRepository.findByUser(user).ifPresentOrElse(
-                token -> token.updateRefreshToken(refreshToken),
+                token -> token.updateRefreshToken(refreshToken, expiryDate),
                 () -> refreshTokenRepository.save(
-                        RefreshToken.builder()
-                                .user(user)
-                                .refreshToken(refreshToken)
-                                .build()
+						RefreshToken.builder()
+								.user(user)
+								.refreshToken(refreshToken)
+								.expiryDate(expiryDate) // 만료일 설정
+								.build()
                 )
         );
         return TokenDto.builder()
