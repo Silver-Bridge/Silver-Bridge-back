@@ -34,3 +34,15 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET_KEY}
+
+chatbot:
+  senior-friendly: true
+  history-limit: 20
+  asr:
+    std-endpoint: "http://localhost:9001/asr/transcribe"
+    gs-endpoint: "http://localhost:9002/asr/transcribe"
+    jl-endpoint: "http://localhost:9003/asr/transcribe"
+    timeout-ms: 20000
+  llm:
+    endpoint: "http://localhost:9100/llm/chat"
+    timeout-ms: 20000
