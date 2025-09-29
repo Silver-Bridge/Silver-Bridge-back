@@ -34,6 +34,9 @@ public class ChatService {
     @Value("${chatbot.history-limit:20}")
     private int historyLimit;
 
+    /**
+     * 텍스트 입력 처리
+     */
     @Transactional
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
@@ -55,6 +58,9 @@ public class ChatService {
                 .build();
     }
 
+    /**
+     * 음성 입력 처리
+     */
     @Transactional
     public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file) {
         ChatSession session = upsertSession(userId, null, regionCode);
@@ -76,6 +82,9 @@ public class ChatService {
                 .build();
     }
 
+    /**
+     * 히스토리 조회
+     */
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
         ChatSession s = sessionRepo.findById(sessionId)
@@ -86,6 +95,34 @@ public class ChatService {
         return latestHistory(sessionId, Math.max(historyLimit, 50));
     }
 
+    /**
+     * ✅ 사용자 세션 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public List<ChatSession> getSessions(Long userId) {
+        return sessionRepo.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /**
+     * ✅ 사용자 세션 삭제
+     */
+    @Transactional
+    public void deleteSession(Long userId, Long sessionId) {
+        ChatSession session = sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
+
+        if (!Objects.equals(session.getUserId(), userId)) {
+            throw new AccessControlException("본인 세션만 삭제할 수 있습니다.");
+        }
+
+        // 메시지도 같이 삭제
+        messageRepo.deleteAll(messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId));
+        sessionRepo.delete(session);
+    }
+
+    /**
+     * 세션 생성 or 갱신
+     */
     private ChatSession upsertSession(Long userId, Long sessionId, String regionCode) {
         ChatSession session;
         if (sessionId != null) {
@@ -105,6 +142,9 @@ public class ChatService {
         return sessionRepo.save(session);
     }
 
+    /**
+     * 메시지 저장
+     */
     private void saveMessage(ChatSession s, ChatMessage.Role role, String content) {
         ChatMessage m = new ChatMessage();
         m.setSession(s);
@@ -113,6 +153,9 @@ public class ChatService {
         messageRepo.save(m);
     }
 
+    /**
+     * 세션 최신 대화 불러오기
+     */
     private List<MessageDto> latestHistory(Long sessionId, int limit) {
         return messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .sorted(Comparator.comparing(ChatMessage::getCreatedAt))
