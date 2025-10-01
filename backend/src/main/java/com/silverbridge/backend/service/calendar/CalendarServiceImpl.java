@@ -1,170 +1,142 @@
-//package com.silverbridge.backend.service.calendar;
-//
-//import com.silverbridge.backend.dto.calendar.CalendarDtos.*;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.time.LocalDate;
-//import java.util.List;
-//
-//// 필요한 Repository는 실제 네 엔티티 명에 맞춰 주입해줘.
-//// 예: private final CalendarEntryRepository calendarRepository; 등
-//@Service
-//@RequiredArgsConstructor
-//@Transactional(readOnly = true)
-//public class CalendarServiceImpl implements CalendarService {
-//
-//    // 예시 리포지토리 (네가 이미 만들어둔 패키지/이름에 맞게 교체)
-//    // private final CalendarEntryRepository calendarRepository;
-//    // private final ScheduleRepository scheduleRepository;
-//
-//    @Override
-//    public List<CalendarDateItem> getCalendarDates(Long userId, int year, int month) {
-//        // TODO: DB에서 userId, year-month에 해당하는 날짜 레코드 조회
-//        // return calendarRepository.findByMemberIdAndYearMonth(userId, year, month)
-//        //         .stream().map(e -> new CalendarDateItem(e.getId(), e.getMemberId(), e.getDate()))
-//        //         .toList();
-//        throw new UnsupportedOperationException("Repository 연결 후 구현하세요.");
-//    }
-//
-//    @Override
-//    public List<ScheduleItem> getSchedules(Long userId, Long calendarId, Long scheduleId, LocalDate date) {
-//        // TODO: calendarId, scheduleId, date 기준으로 스케줄 조회 (명세에 맞는 필터링)
-//        // return scheduleRepository.findByCalendarAndDateAndOptionalId(...)
-//        //         .stream()
-//        //         .map(s -> ScheduleItem.builder()
-//        //                 .id(s.getId())
-//        //                 .title(s.getTitle())
-//        //                 .description(s.getDescription())
-//        //                 .alarmTime(s.getAlarmTime())
-//        //                 .build())
-//        //         .toList();
-//        throw new UnsupportedOperationException("Repository 연결 후 구현하세요.");
-//    }
-//
-//    @Override
-//    @Transactional
-//    public void addSchedule(Long userId, CreateScheduleRequest req) {
-//        if (req.getTitle() == null || req.getTitle().isBlank() || req.getAlarmTime() == null) {
-//            throw new IllegalArgumentException("필수 입력값이 누락되었습니다. (title, alarm_time)");
-//        }
-//        // TODO: userId의 기본/특정 캘린더를 찾아 Schedule 생성/저장
-//        // scheduleRepository.save(new Schedule(...));
-//        throw new UnsupportedOperationException("Repository 연결 후 구현하세요.");
-//    }
-//
-//    @Override
-//    @Transactional
-//    public ScheduleItem updateSchedule(Long userId, Long calendarId, Long scheduleId, UpdateScheduleRequest req) {
-//        if (req.getTitle() == null || req.getTitle().isBlank() || req.getAlarmTime() == null) {
-//            throw new IllegalArgumentException("필수 입력값이 누락되었습니다. (title, alarm_time)");
-//        }
-//        // TODO: scheduleId로 조회 후 값 수정
-//        // var s = scheduleRepository.findByIdAndCalendarIdAndUserId(...)
-//        //         .orElseThrow(() -> new IllegalArgumentException("수정할 일정이 없습니다."));
-//        // s.update(req.getTitle(), req.getDescription(), req.getAlarmTime());
-//        // return ScheduleItem.builder()....build();
-//        throw new UnsupportedOperationException("Repository 연결 후 구현하세요.");
-//    }
-//
-//    @Override
-//    @Transactional
-//    public void deleteSchedule(Long userId, Long calendarId, Long scheduleId) {
-//        // TODO: 존재 확인 후 삭제
-//        // if (!scheduleRepository.existsByIdAndCalendarIdAndUserId(...)) throw new NotFound...
-//        // scheduleRepository.deleteById(scheduleId);
-//        throw new UnsupportedOperationException("Repository 연결 후 구현하세요.");
-//    }
-//}
-
 package com.silverbridge.backend.service.calendar;
 
+import com.silverbridge.backend.domain.User;
+import com.silverbridge.backend.domain.calendar.CalendarEvent;
 import com.silverbridge.backend.dto.calendar.CalendarDtos.*;
-import com.silverbridge.backend.service.calendar.CalendarService;
+import com.silverbridge.backend.repository.UserRepository;
+import com.silverbridge.backend.repository.calendar.CalendarEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CalendarServiceImpl implements CalendarService {
 
-    // 하드코딩 일정 저장소 (임시)
-    private static final List<ScheduleItem> dummySchedules = new ArrayList<>();
-    private static final List<CalendarDateItem> dummyDates = new ArrayList<>();
+    private final CalendarEventRepository eventRepo;
+    private final UserRepository userRepo;
 
-    static {
-        // 예시 일정 하나
-        dummySchedules.add(
-                ScheduleItem.builder()
-                        .id(1L)
-                        .title("임시 일정")
-                        .description("하드코딩 일정입니다.")
-                        .alarmTime(OffsetDateTime.now().plusDays(1))
-                        .build()
-        );
-
-        // 예시 날짜
-        dummyDates.add(
-                CalendarDateItem.builder()
-                        .id(1L)
-                        .memberId(1L)
-                        .date(LocalDate.now())
-                        .build()
-        );
-    }
-
+    /**
+     * 특정 월의 일정 목록 조회
+     */
     @Override
     public List<CalendarDateItem> getCalendarDates(Long userId, int year, int month) {
-        System.out.println("📅 getCalendarDates 호출됨");
-        return dummyDates;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.plusMonths(1).minusDays(1);
+
+        return eventRepo.findByUserIdAndStartAtBetween(
+                        userId,
+                        start.atStartOfDay(),
+                        end.atTime(23, 59))
+                .stream()
+                .map(e -> CalendarDateItem.builder()
+                        .id(e.getId())
+                        .memberId(e.getUser().getId())
+                        .date(e.getStartAt().toLocalDate())
+                        .build())
+                .collect(Collectors.toList());
     }
 
+    /**
+     * 특정 날짜의 일정 조회
+     */
     @Override
-    public List<ScheduleItem> getSchedules(Long userId, Long calendarId, Long scheduleId, LocalDate date) {
-        System.out.println("📋 getSchedules 호출됨");
-        return dummySchedules;
+    public List<ScheduleItem> getSchedules(Long userId, LocalDate date) {
+        return eventRepo.findByUserIdAndStartAtBetween(
+                        userId,
+                        date.atStartOfDay(),
+                        date.atTime(23, 59))
+                .stream()
+                .map(this::toScheduleItem)
+                .collect(Collectors.toList());
     }
 
+    /**
+     * 일정 추가
+     */
     @Override
+    @Transactional
     public void addSchedule(Long userId, CreateScheduleRequest req) {
-        System.out.println("➕ addSchedule 호출됨");
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-        ScheduleItem item = ScheduleItem.builder()
-                .id((long) (dummySchedules.size() + 1))
+        CalendarEvent event = CalendarEvent.builder()
+                .user(user)
                 .title(req.getTitle())
                 .description(req.getDescription())
-                .alarmTime(req.getAlarmTime())
+                .startAt(req.getStartAt().toLocalDateTime())
+                .endAt(req.getEndAt().toLocalDateTime())
+                .allDay(req.getAllDay() != null ? req.getAllDay() : false)
+                .location(req.getLocation())
+                .repeatType(req.getRepeatType() != null ? req.getRepeatType() : CalendarEvent.RepeatType.NONE)
+                .priority(req.getPriority() != null ? req.getPriority() : CalendarEvent.Priority.MEDIUM)
+                .alarmTime(req.getAlarmTime() != null ? req.getAlarmTime().toLocalDateTime() : null)
                 .build();
 
-        dummySchedules.add(item);
+        eventRepo.save(event);
     }
 
+    /**
+     * 일정 수정
+     */
     @Override
-    public ScheduleItem updateSchedule(Long userId, Long calendarId, Long scheduleId, UpdateScheduleRequest req) {
-        System.out.println("✏️ updateSchedule 호출됨");
+    @Transactional
+    public ScheduleItem updateSchedule(Long userId, Long scheduleId, UpdateScheduleRequest req) {
+        CalendarEvent e = eventRepo.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("수정할 일정이 없습니다."));
 
-        for (ScheduleItem item : dummySchedules) {
-            if (item.getId().equals(scheduleId)) {
-                item.setTitle(req.getTitle());
-                item.setDescription(req.getDescription());
-                item.setAlarmTime(req.getAlarmTime());
-                return item;
-            }
+        if (!e.getUser().getId().equals(userId)) {
+            throw new SecurityException("본인 일정만 수정할 수 있습니다.");
         }
 
-        return null; // 없는 경우 null 반환 (실제로는 예외 던지기)
+        e.setTitle(req.getTitle());
+        e.setDescription(req.getDescription());
+        e.setStartAt(req.getStartAt().toLocalDateTime());
+        e.setEndAt(req.getEndAt().toLocalDateTime());
+        e.setAllDay(req.getAllDay());
+        e.setLocation(req.getLocation());
+        e.setRepeatType(req.getRepeatType());
+        e.setPriority(req.getPriority());
+        e.setAlarmTime(req.getAlarmTime() != null ? req.getAlarmTime().toLocalDateTime() : null);
+
+        CalendarEvent updated = eventRepo.save(e);
+        return toScheduleItem(updated);
     }
 
+    /**
+     * 일정 삭제
+     */
     @Override
-    public void deleteSchedule(Long userId, Long calendarId, Long scheduleId) {
-        System.out.println("🗑️ deleteSchedule 호출됨");
+    @Transactional
+    public void deleteSchedule(Long userId, Long scheduleId) {
+        CalendarEvent e = eventRepo.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("삭제할 일정이 없습니다."));
 
-        dummySchedules.removeIf(item -> item.getId().equals(scheduleId));
+        if (!e.getUser().getId().equals(userId)) {
+            throw new SecurityException("본인 일정만 삭제할 수 있습니다.");
+        }
+
+        eventRepo.delete(e);
+    }
+
+    // ── 내부 변환 메서드 ────────────────────────────
+    private ScheduleItem toScheduleItem(CalendarEvent e) {
+        return ScheduleItem.builder()
+                .id(e.getId())
+                .title(e.getTitle())
+                .description(e.getDescription())
+                .startAt(e.getStartAt().atOffset(java.time.ZoneOffset.ofHours(9)))
+                .endAt(e.getEndAt().atOffset(java.time.ZoneOffset.ofHours(9)))
+                .allDay(e.getAllDay())
+                .location(e.getLocation())
+                .repeatType(e.getRepeatType())
+                .priority(e.getPriority())
+                .alarmTime(e.getAlarmTime() != null ? e.getAlarmTime().atOffset(java.time.ZoneOffset.ofHours(9)) : null)
+                .build();
     }
 }
