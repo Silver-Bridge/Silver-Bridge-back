@@ -23,15 +23,26 @@ public class GlobalExceptionHandler {
         responseBody.put("code", 600); // 명세에 없는 예외는 600대 코드로 처리함
         responseBody.put("message", "유효성 검사 실패");
 
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            if (fieldName.equals("phoneNumber")) responseBody.put("code", 607);
-            else if (fieldName.equals("password")) responseBody.put("code", 601);
-            else if (fieldName.equals("name")) responseBody.put("code", 603);
-            else if (fieldName.equals("birth")) responseBody.put("code", 605);
-            else if (fieldName.equals("gender")) responseBody.put("code", 606);
-        });
+		Map<String, String> fieldErrors = new HashMap<>();
+
+		for (var error : ex.getBindingResult().getAllErrors()) {
+			String fieldName = ((FieldError) error).getField();
+			String errorMessage = error.getDefaultMessage();
+			fieldErrors.put(fieldName, errorMessage);
+
+			// 명세 기반 코드 매핑
+			switch (fieldName) {
+				case "phoneNumber" -> responseBody.put("code", 607);
+				case "password" -> responseBody.put("code", 601);
+				case "name" -> responseBody.put("code", 603);
+				case "birth" -> responseBody.put("code", 605);
+				case "gender" -> responseBody.put("code", 606);
+				default -> responseBody.put("code", 600);
+			}
+		}
+
+		// 필드별 상세 에러메시지 포함
+		responseBody.put("details", fieldErrors);
 
         return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
     }

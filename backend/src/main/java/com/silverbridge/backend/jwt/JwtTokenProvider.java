@@ -41,10 +41,26 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
+				.setAudience("access")
                 .setExpiration(accessTokenExpiresIn)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
+
+	// 소셜 로그인용 임시 Access Token 생성
+	public String createTempAccessToken(Long kakaoId, String nickname) {
+		long now = (new Date()).getTime();
+		Date accessTokenExpiresIn = new Date(now + 300000); // 5분 후 만료 (임시 토큰)
+
+		return Jwts.builder()
+				.setSubject(String.valueOf(kakaoId)) // 주체(Subject)에 kakaoId 사용
+				.claim("nickname", nickname)
+				.claim("role", "GUEST") // 임시 회원 권한 부여
+				.setAudience("temp-user")     // aud 클레임 추가
+				.setExpiration(accessTokenExpiresIn)
+				.signWith(key, SignatureAlgorithm.HS256)
+				.compact();
+	}
 
     // Refresh Token 생성 (Corrected `signWith` method)
     public String createRefreshToken() {
@@ -53,6 +69,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .setExpiration(refreshTokenExpiresIn)
+				.setAudience("refresh")
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -92,7 +109,7 @@ public class JwtTokenProvider {
         return false;
     }
 
-    private Claims parseClaims(String accessToken) {
+    public Claims parseClaims(String accessToken) {
         try {
             // Corrected with new `parserBuilder` and `setSigningKey` methods
             return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(accessToken).getBody();
@@ -100,4 +117,31 @@ public class JwtTokenProvider {
             return e.getClaims();
         }
     }
+
+	// 임시 토큰에서 kakaoId를 추출하고 토큰의 유효성을 검증
+	public Long getKakaoIdFromTempToken(String tempTokenHeader) {
+		String tempToken = tempTokenHeader;
+
+		try {
+			if (tempToken.startsWith("Bearer ")) {
+				tempToken = tempToken.substring(7);
+			}
+
+			// 토큰 파싱 및 유효성 검증
+			Claims claims = parseClaims(tempToken);
+			String kakaoIdString = claims.getSubject();
+
+			// Subject에 저장된 kakaoId를 Long 타입으로 변환
+			if (kakaoIdString == null) {
+				throw new IllegalArgumentException("토큰에 kakaoId 정보가 없습니다.");
+			}
+			return Long.parseLong(kakaoIdString);
+
+		} catch (Exception e) {
+			log.error("임시 토큰 처리 실패: {}", e.getMessage());
+			// 클라이언트에 401 UNAUTHORIZED 응답 유도
+			throw new IllegalArgumentException("유효하지 않거나 만료된 임시 토큰입니다. 다시 카카오 로그인을 시도하세요.");
+		}
+	}
+
 }

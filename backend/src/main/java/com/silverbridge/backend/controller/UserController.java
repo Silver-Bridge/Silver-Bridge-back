@@ -58,14 +58,14 @@ public class UserController {
         }
     }
 
-		// 로그아웃
-	  @PostMapping("/logout")
-		public ResponseEntity<String> logout(@RequestBody LogoutRequest request) {
-			try {
-				userService.logout(request.getRefreshToken()); // DB에 저장된 리프레시 토큰 삭제
-				return ResponseEntity.ok("로그아웃 성공"); // 로그아웃 성공 응답 => 프론트엔드는 로컬에 저장된 토큰을 삭제해야 함
-			} catch (IllegalArgumentException ex) {
-				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); // 유효하지 않은 토큰인 경우 처리
-			}
+	// 로그아웃
+	@PostMapping("/logout")
+	public ResponseEntity<String> logout(@RequestBody LogoutRequest request) {
+		try {
+			userService.logout(request.getRefreshToken()); // DB에 저장된 리프레시 토큰 삭제
+			return ResponseEntity.ok("로그아웃 성공"); // 로그아웃 성공 응답 => 프론트엔드는 로컬에 저장된 토큰을 삭제해야 함
+		} catch (IllegalArgumentException ex) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); // 유효하지 않은 토큰인 경우 처리
 		}
+	}
 }
