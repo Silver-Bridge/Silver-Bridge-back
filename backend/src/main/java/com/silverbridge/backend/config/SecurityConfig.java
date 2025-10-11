@@ -54,6 +54,7 @@ public class SecurityConfig {
 //                                "/api/calendar/**"      // 캘린더 API 허용
 //                        ).permitAll()
 //                        .anyRequest().authenticated()
+								.requestMatchers("/api/users/social/kakao", "/api/users/social/register-final").permitAll()
                                 .anyRequest().permitAll()
                 )
                 .addFilterBefore(

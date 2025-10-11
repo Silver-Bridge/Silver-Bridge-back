@@ -1,5 +1,6 @@
 package com.silverbridge.backend.jwt;
 
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,14 +23,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
+		String requestURI = request.getRequestURI();
+
+		// 소셜 회원가입 경로는 필터 스킵
+		if (requestURI.startsWith("/api/users/social/kakao") ||
+				requestURI.startsWith("/api/users/social/register-final")) {
+			filterChain.doFilter(request, response);
+			return;
+		}
+
         // Request Header에서 JWT 토큰 추출
         String jwt = resolveToken(request);
 
         // 유효성 검사
-        if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-            Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+		if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+			Claims claims = jwtTokenProvider.parseClaims(jwt);
+
+			// aud=temp-user(임시 토큰)는 인증 생략
+			if (!"temp-user".equals(claims.getAudience())) {
+				Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			}
+		}
 
         filterChain.doFilter(request, response);
     }
