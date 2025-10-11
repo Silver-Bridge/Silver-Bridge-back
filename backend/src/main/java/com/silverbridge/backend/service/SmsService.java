@@ -27,7 +27,7 @@ public class SmsService {
 	// 인증번호 전송 메서드
 	public String sendVerificationCode(String phoneNumber) {
 		String verificationCode = generateCode();
-		System.out.println("발송된 인증번호(test용): " + verificationCode);
+		// System.out.println("발송된 인증번호(test용): " + verificationCode); // TODO: 테스트 완료 후 삭제
 
 		Message message = new Message();
 		message.setFrom(senderNumber);
