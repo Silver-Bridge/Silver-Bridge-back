@@ -29,17 +29,25 @@ public class UserService {
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final SmsVerificationManager smsVerificationManager;
 
-	public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+	public UserService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, SmsVerificationManager smsVerificationManager) {
 		this.userRepository = userRepository;
 		this.refreshTokenRepository = refreshTokenRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenProvider = jwtTokenProvider;
+		this.smsVerificationManager = smsVerificationManager;
 	}
 
 	// 회원가입 메서드
 	@Transactional
 	public void join(JoinRequest request) {
+		String phoneNumber = request.getPhoneNumber();
+
+		if (!smsVerificationManager.isVerified(phoneNumber)) {
+			throw new IllegalArgumentException("전화번호 인증이 완료되지 않았습니다.");
+		}
+
 		if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
 			throw new IllegalArgumentException("이미 존재하는 전화번호입니다.");
 		}

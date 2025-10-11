@@ -41,3 +41,8 @@ kakao:
   redirect-uri: http://localhost:8080/api/users/oauth/kakao    # 프엔이 인가 코드를 보낼 엔드포인트
   token-url: https://kauth.kakao.com/oauth/token
   user-info-url: https://kapi.kakao.com/v2/user/me
+
+sms:
+  api-key: ${SMS_API_KEY}
+  api-secret: ${SMS_API_SECRET}
+  sender: ${SMS_SENDER_NUMBER} # 발신자 번호
