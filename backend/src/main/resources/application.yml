@@ -36,19 +36,6 @@ jwt:
   secret: ${JWT_SECRET_KEY}
 
 # 충돌해결 : chatbot, kakao, sms 설정
-
-kakao:
-  client-id: ${KAKAO_REST_API_KEY}
-  client-secret: ${KAKAO_CLIENT_SECRET}
-  redirect-uri: http://localhost:8080/api/users/oauth/kakao   # 프엔이 인가 코드를 보낼 엔드포인트
-  token-url: https://kauth.kakao.com/oauth/token
-  user-info-url: https://kapi.kakao.com/v2/user/me
-
-sms:
-  api-key: ${SMS_API_KEY}
-  api-secret: ${SMS_API_SECRET}
-  sender: ${SMS_SENDER_NUMBER} # 발신자 번호
-
 chatbot:
   senior-friendly: true
   history-limit: 20
@@ -61,3 +48,14 @@ chatbot:
     endpoint: "http://localhost:9100/llm/chat"
     timeout-ms: 20000
 
+kakao:
+  client-id: ${KAKAO_REST_API_KEY}
+  client-secret: ${KAKAO_CLIENT_SECRET}
+  redirect-uri: http://localhost:8080/api/users/oauth/kakao   # 프엔이 인가 코드를 보낼 엔드포인트
+  token-url: https://kauth.kakao.com/oauth/token
+  user-info-url: https://kapi.kakao.com/v2/user/me
+
+sms:
+  api-key: ${SMS_API_KEY}
+  api-secret: ${SMS_API_SECRET}
+  sender: ${SMS_SENDER_NUMBER} # 발신자 번호
