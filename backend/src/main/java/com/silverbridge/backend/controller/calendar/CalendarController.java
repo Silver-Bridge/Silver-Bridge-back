@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+// 캘린더(일정) 기능 관련 API 컨트롤러
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/calendar")
@@ -17,10 +18,7 @@ public class CalendarController {
 
     private final CalendarService calendarService;
 
-    /**
-     * 특정 월의 일정 목록 조회
-     * GET /api/calendar/{userId}?year=2025&month=9
-     */
+    // 특정 월의 일정 유무 목록 조회
     @GetMapping("/{userId}")
     public ResponseEntity<?> getCalendar(
             @PathVariable Long userId,
@@ -38,17 +36,14 @@ public class CalendarController {
         }
     }
 
-    /**
-     * 특정 날짜의 일정 조회
-     * GET /api/calendar/{userId}/schedules?date=2025-09-28
-     */
+    // 특정 날짜의 상세 일정 목록 조회
     @GetMapping("/{userId}/schedules")
     public ResponseEntity<?> getSchedules(
             @PathVariable Long userId,
             @RequestParam String date
     ) {
         try {
-            LocalDate d = LocalDate.parse(date); // ISO-8601 yyyy-MM-dd
+            LocalDate d = LocalDate.parse(date); // ISO-8601 yyyy-MM-dd 형식 파싱
             List<ScheduleItem> items = calendarService.getSchedules(userId, d);
             return ResponseEntity.ok(ScheduleListResponse.builder().body(items).build());
         } catch (Exception e) {
@@ -59,10 +54,7 @@ public class CalendarController {
         }
     }
 
-    /**
-     * 일정 추가
-     * POST /api/calendar/{userId}/add
-     */
+    // 신규 일정 추가
     @PostMapping("/{userId}/add")
     public ResponseEntity<?> addSchedule(
             @PathVariable Long userId,
@@ -82,10 +74,7 @@ public class CalendarController {
         }
     }
 
-    /**
-     * 일정 수정
-     * PUT /api/calendar/{userId}/schedule/{scheduleId}
-     */
+    // 기존 일정 수정
     @PutMapping("/{userId}/schedule/{scheduleId}")
     public ResponseEntity<?> updateSchedule(
             @PathVariable Long userId,
@@ -103,10 +92,7 @@ public class CalendarController {
         }
     }
 
-    /**
-     * 일정 삭제
-     * DELETE /api/calendar/{userId}/schedule/{scheduleId}
-     */
+    // 기존 일정 삭제
     @DeleteMapping("/{userId}/schedule/{scheduleId}")
     public ResponseEntity<?> deleteSchedule(
             @PathVariable Long userId,
