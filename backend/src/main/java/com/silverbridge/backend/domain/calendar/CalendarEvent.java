@@ -44,6 +44,7 @@ public class CalendarEvent {
 
     // 하루 종일 지속되는 일정 여부
     @Column(name = "all_day")
+    @Builder.Default
     private Boolean allDay = false;
 
     // 일정 장소
@@ -52,11 +53,13 @@ public class CalendarEvent {
     // 반복 규칙 (NONE, DAILY, WEEKLY, MONTHLY)
     @Enumerated(EnumType.STRING)
     @Column(name = "repeat_type", nullable = false)
+    @Builder.Default
     private RepeatType repeatType = RepeatType.NONE;
 
     // 중요도 (LOW, MEDIUM, HIGH)
     @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false)
+    @Builder.Default
     private Priority priority = Priority.MEDIUM;
 
     // 알림 시각 (일정 시작 기준)
@@ -74,4 +77,23 @@ public class CalendarEvent {
     // 엔티티 저장 전 생성/수정 시간 초기화
     @PrePersist
     public void onCreate() {
-        createdAt = LocalDateTime
+        createdAt = LocalDateTime.now();
+        updatedAt = createdAt;
+    }
+
+    // 엔티티 업데이트 전 수정 시간 초기화
+    @PreUpdate
+    public void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    // 반복 규칙 정의
+    public enum RepeatType {
+        NONE, DAILY, WEEKLY, MONTHLY
+    }
+
+    // 중요도 정의
+    public enum Priority {
+        LOW, MEDIUM, HIGH
+    }
+}
