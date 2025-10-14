@@ -1,11 +1,11 @@
 #  DB 접속 정보
-  #  url: localhost:3306/silverbridge_db (DB명 silverbridge_db)
-  #  username/password: root/password 기본값
+#  url: localhost:3306/silverbridge_db (DB명 silverbridge_db)
+#  username/password: root/password 기본값
 #  JPA ddl-auto
-  #  개발: update (엔티티 바뀌면 테이블 자동 변경)
-  #  운영: validate (스키마만 검증)
+#  개발: update (엔티티 바뀌면 테이블 자동 변경)
+#  운영: validate (스키마만 검증)
 #  logging
-  #  Hibernate 실행 쿼리 로그까지 확인 가능
+#  Hibernate 실행 쿼리 로그까지 확인 가능
 
 spring:
   application:
@@ -35,14 +35,27 @@ logging:
 jwt:
   secret: ${JWT_SECRET_KEY}
 
+# 충돌해결 : chatbot, kakao, sms 설정
+chatbot:
+  senior-friendly: true
+  history-limit: 20
+  asr:
+    std-endpoint: "http://localhost:9001/asr/transcribe"
+    gs-endpoint: "http://localhost:9002/asr/transcribe"
+    jl-endpoint: "http://localhost:9003/asr/transcribe"
+    timeout-ms: 20000
+  llm:
+    endpoint: "http://localhost:9100/llm/chat"
+    timeout-ms: 20000
+
 kakao:
   client-id: ${KAKAO_REST_API_KEY}
   client-secret: ${KAKAO_CLIENT_SECRET}
-  redirect-uri: http://localhost:8080/api/users/oauth/kakao    # 프엔이 인가 코드를 보낼 엔드포인트
+  redirect-uri: http://localhost:8080/api/users/oauth/kakao   # 프엔이 인가 코드를 보낼 엔드포인트
   token-url: https://kauth.kakao.com/oauth/token
   user-info-url: https://kapi.kakao.com/v2/user/me
 
 sms:
   api-key: ${SMS_API_KEY}
   api-secret: ${SMS_API_SECRET}
-  sender: ${SMS_SENDER_NUMBER} # 발신자 번호
+  sender: ${SMS_SENDER_NUMBER} # 발신자 번호${SMS_SENDER_NUMBER} # 발신자 번호
