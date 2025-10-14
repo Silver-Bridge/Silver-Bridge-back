@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
+// 캘린더(일정) 기능 관련 API 컨트롤러
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/calendar")
@@ -17,7 +18,7 @@ public class CalendarController {
 
     private final CalendarService calendarService;
 
-    // 캘린더 목록: GET /api/calender/{userId}?year=2024&month=8
+    // 특정 월의 일정 유무 목록 조회
     @GetMapping("/{userId}")
     public ResponseEntity<?> getCalendar(
             @PathVariable Long userId,
@@ -29,38 +30,31 @@ public class CalendarController {
             return ResponseEntity.ok(CalendarDateListResponse.builder().body(items).build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(SimpleMessageResponse.builder()
-                    .code(613) // 명세의 예시 코드
-                    .message("날짜 형식에 맞지않습니다.")
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(SimpleMessageResponse.builder()
-                    .code(401)
-                    .message("요청 권한이 없습니다.")
+                    .code(613)
+                    .message("날짜 형식이 올바르지 않습니다.")
                     .build());
         }
     }
 
-    // 일정 상세보기: GET /api/calender/{userId}/{calendarId}/schedule/{scheduleId}?date=2024-08-15
-    @GetMapping("/{userId}/{calendarId}/schedule/{scheduleId}")
-    public ResponseEntity<?> getScheduleDetail(
+    // 특정 날짜의 상세 일정 목록 조회
+    @GetMapping("/{userId}/schedules")
+    public ResponseEntity<?> getSchedules(
             @PathVariable Long userId,
-            @PathVariable Long calendarId,
-            @PathVariable Long scheduleId,
             @RequestParam String date
     ) {
         try {
-            LocalDate d = LocalDate.parse(date); // ISO-8601 yyyy-MM-dd
-            List<ScheduleItem> items = calendarService.getSchedules(userId, calendarId, scheduleId, d);
+            LocalDate d = LocalDate.parse(date); // ISO-8601 yyyy-MM-dd 형식 파싱
+            List<ScheduleItem> items = calendarService.getSchedules(userId, d);
             return ResponseEntity.ok(ScheduleListResponse.builder().body(items).build());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(SimpleMessageResponse.builder()
-                    .code(401)
-                    .message("요청 권한이 없습니다.")
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(SimpleMessageResponse.builder()
+                    .code(614)
+                    .message("일정을 조회할 수 없습니다.")
                     .build());
         }
     }
 
-    // 일정 추가: POST /api/calender/{userId}/add
+    // 신규 일정 추가
     @PostMapping("/{userId}/add")
     public ResponseEntity<?> addSchedule(
             @PathVariable Long userId,
@@ -70,54 +64,42 @@ public class CalendarController {
             calendarService.addSchedule(userId, req);
             return ResponseEntity.ok(SimpleMessageResponse.builder()
                     .code(200)
-                    .message("일정 추가에 성공하였습니다")
+                    .message("일정 추가에 성공하였습니다.")
                     .build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(SimpleMessageResponse.builder()
                     .code(801)
-                    .message(e.getMessage()) // "필수 입력값이 누락되었습니다. (title, alarm_time)"
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(SimpleMessageResponse.builder()
-                    .code(500)
-                    .message("서버 오류로 인해 일정을 추가할 수 없습니다. 잠시 후 다시 시도해주세요.")
+                    .message(e.getMessage())
                     .build());
         }
     }
 
-    // 일정 수정: PUT /api/calender/{userId}/{calendarId}/schedule/{scheduleId}
-    @PutMapping("/{userId}/{calendarId}/schedule/{scheduleId}")
+    // 기존 일정 수정
+    @PutMapping("/{userId}/schedule/{scheduleId}")
     public ResponseEntity<?> updateSchedule(
             @PathVariable Long userId,
-            @PathVariable Long calendarId,
             @PathVariable Long scheduleId,
             @RequestBody UpdateScheduleRequest req
     ) {
         try {
-            ScheduleItem updated = calendarService.updateSchedule(userId, calendarId, scheduleId, req);
+            ScheduleItem updated = calendarService.updateSchedule(userId, scheduleId, req);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(SimpleMessageResponse.builder()
                     .code(801)
                     .message(e.getMessage())
                     .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(SimpleMessageResponse.builder()
-                    .code(500)
-                    .message("서버 오류로 인해 일정을 추가할 수 없습니다. 잠시 후 다시 시도해주세요.")
-                    .build());
         }
     }
 
-    // 일정 삭제: DELETE /api/calender/{userId}/{calendarId}/schedule/{scheduleId}
-    @DeleteMapping("/{userId}/{calendarId}/schedule/{scheduleId}")
+    // 기존 일정 삭제
+    @DeleteMapping("/{userId}/schedule/{scheduleId}")
     public ResponseEntity<?> deleteSchedule(
             @PathVariable Long userId,
-            @PathVariable Long calendarId,
             @PathVariable Long scheduleId
     ) {
         try {
-            calendarService.deleteSchedule(userId, calendarId, scheduleId);
+            calendarService.deleteSchedule(userId, scheduleId);
             return ResponseEntity.ok(SimpleMessageResponse.builder()
                     .code(200)
                     .message("일정 삭제에 성공하였습니다.")
@@ -126,11 +108,6 @@ public class CalendarController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(SimpleMessageResponse.builder()
                     .code(802)
                     .message("삭제할 일정이 없습니다.")
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(SimpleMessageResponse.builder()
-                    .code(500)
-                    .message("서버 오류로 인해 일정을 추가할 수 없습니다. 잠시 후 다시 시도해주세요.")
                     .build());
         }
     }
