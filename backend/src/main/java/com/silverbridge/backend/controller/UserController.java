@@ -1,9 +1,6 @@
 package com.silverbridge.backend.controller;
 
-import com.silverbridge.backend.dto.JoinRequest;
-import com.silverbridge.backend.dto.LoginRequest;
-import com.silverbridge.backend.dto.LogoutRequest;
-import com.silverbridge.backend.dto.TokenDto;
+import com.silverbridge.backend.dto.*;
 import com.silverbridge.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,10 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -67,5 +62,22 @@ public class UserController {
 		} catch (IllegalArgumentException ex) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage()); // 유효하지 않은 토큰인 경우 처리
 		}
+	}
+
+	// 현재 로그인한 사용자 정보를 조회
+	// Access Token을 Authorization 헤더에 담아 요청.
+	@GetMapping("/me")
+	public ResponseEntity<UserResponse> getMyInfo() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+		if (authentication == null || authentication.getName() == null) {
+			throw new RuntimeException("인증된 사용자 정보를 찾을 수 없습니다.");
+		}
+
+		String phoneNumber = authentication.getName(); // phoneNumber
+
+		UserResponse userInfo = userService.getUserInfo(phoneNumber);
+
+		return ResponseEntity.ok(userInfo);
 	}
 }

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.stream.Collectors;
 
@@ -78,14 +79,21 @@ public class JwtTokenProvider {
     public Authentication getAuthentication(String accessToken) {
         Claims claims = parseClaims(accessToken);
 
-        if (claims.get("auth") == null) {
-            throw new RuntimeException("권한 정보가 없는 토큰입니다.");
-        }
+		Object authClaim = claims.get("auth");
+		if (authClaim == null || authClaim.toString().isEmpty()) {
+			// 권한 정보가 아예 없거나 빈 문자열인 경우, 빈 권한 목록을 반환하거나 예외 처리
+			// 현재는 JWT 필터에서 빈 권한 목록을 허용하지 않을 수 있으므로, 임시로 빈 리스트를 만듦
+			// 빈 권한을 허용하려면 UserDetails 생성 시 빈 컬렉션을 넘겨야 함.
+			Collection<? extends GrantedAuthority> authorities = Collections.emptyList();
+			UserDetails principal = new User(claims.getSubject(), "", authorities);
+			return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+		}
 
-        Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("auth").toString().split(","))
-                        .map(SimpleGrantedAuthority::new)
-                        .toList();
+		Collection<? extends GrantedAuthority> authorities =
+				Arrays.stream(authClaim.toString().split(","))
+						.filter(s -> !s.trim().isEmpty())
+						.map(SimpleGrantedAuthority::new)
+						.toList();
 
         UserDetails principal = new User(claims.getSubject(), "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
