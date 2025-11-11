@@ -2,11 +2,8 @@ package com.silverbridge.backend.service;
 
 import com.silverbridge.backend.domain.RefreshToken;
 import com.silverbridge.backend.domain.User;
-import com.silverbridge.backend.dto.JoinRequest;
-import com.silverbridge.backend.dto.KakaoProfile;
-import com.silverbridge.backend.dto.TokenDto;
+import com.silverbridge.backend.dto.*;
 import com.silverbridge.backend.jwt.JwtTokenProvider;
-import com.silverbridge.backend.dto.FinalRegisterRequest;
 import com.silverbridge.backend.repository.RefreshTokenRepository;
 import com.silverbridge.backend.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -179,5 +176,14 @@ public class UserService {
 			RefreshToken refreshToken = refreshTokenRepository.findByRefreshToken(refreshTokenValue)
 							.orElseThrow(() -> new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.")); // 400 Bad Request
 			refreshTokenRepository.delete(refreshToken); // DB에서 리프레시 토큰 삭제
+	}
+
+	// 사용자 엔티티 조회 메서드
+	@Transactional(readOnly = true)
+	public UserResponse getUserInfo(String phoneNumber) {
+		User user = userRepository.findByPhoneNumber(phoneNumber)
+				.orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
+
+		return UserResponse.from(user);
 	}
 }
