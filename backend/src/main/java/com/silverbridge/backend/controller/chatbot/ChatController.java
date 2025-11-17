@@ -35,11 +35,15 @@ public class ChatController {
 
     // 음성 입력을 통한 챗봇 대화
     @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ChatVoiceResponse> sendVoice(@RequestParam("file") MultipartFile file,
-                                                       @RequestParam(value = "regionCode", required = false) String regionCode,
-                                                       Principal principal) {
+    public ResponseEntity<ChatVoiceResponse> sendVoice(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "regionCode", required = false) String regionCode,
+            @RequestParam(value = "sessionId", required = false) Long sessionId, // [수정] sessionId 파라미터 추가
+            Principal principal) {
+
         Long userId = resolveUserId(principal);
-        return ResponseEntity.ok(chatService.handleVoice(userId, regionCode, file));
+        // [수정] 챗 서비스로 sessionId 전달
+        return ResponseEntity.ok(chatService.handleVoice(userId, regionCode, file, sessionId));
     }
 
     // 특정 세션의 대화 기록 조회
