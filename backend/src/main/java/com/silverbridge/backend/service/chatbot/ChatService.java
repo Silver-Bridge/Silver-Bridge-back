@@ -30,6 +30,9 @@ public class ChatService {
     private final LlmClient llmClient;
     private final PromptBuilder promptBuilder;
 
+    // 감정 분석 클라이언트 주입
+    private final EmotionClient emotionClient;
+
     // 어르신 친화적 답변 모드 활성화 여부
     @Value("${chatbot.senior-friendly:true}")
     private boolean seniorFriendly;
@@ -45,20 +48,31 @@ public class ChatService {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
         // LLM에 전달할 최근 대화 기록 조회
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
-        // 사용자 메시지 DB 저장
-        saveMessage(session, ChatMessage.Role.USER, req.getText());
+
+        // 1. 원본 텍스트로 감정 분석 수행
+        String originalText = req.getText();
+        String emotion = emotionClient.analyze(originalText);
+
+        // 2. 사용자 메시지 DB 저장 (원본 텍스트)
+        saveMessage(session, ChatMessage.Role.USER, originalText);
+
+        // 3. LLM에 전달할 프롬프트용 텍스트 (감정 정보 포함)
+        String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
+
         // LLM에 전달할 프롬프트 조합
-        List<MessageDto> prompt = promptBuilder.build(history, req.getText(), seniorFriendly);
+        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
         // LLM 호출하여 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
         // 챗봇 답변 DB 저장
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
         // 최종 응답 데이터 구성 및 반환
         List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
+
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
                 .replyText(reply)
                 .history(updated)
+                .emotion(emotion) // [수정됨] 응답 DTO에 감정 포함
                 .build();
     }
 
@@ -69,20 +83,30 @@ public class ChatService {
         ChatSession session = upsertSession(userId, null, regionCode);
         // 음성을 텍스트로 변환 (ASR)
         String asrText = asrClient.transcribe(session.getRegionCode(), file);
-        // 변환된 사용자 메시지 DB 저장
+
+        // 1. ASR 텍스트로 감정 분석 수행
+        String emotion = emotionClient.analyze(asrText);
+
+        // 2. 변환된 사용자 메시지 DB 저장 (원본 ASR 텍스트)
         saveMessage(session, ChatMessage.Role.USER, asrText);
+
+        // 3. LLM에 전달할 프롬프트용 텍스트 (감정 정보 포함)
+        String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
+
         // LLM에 전달할 최근 대화 기록 조회 및 프롬프트 조합
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
-        List<MessageDto> prompt = promptBuilder.build(history, asrText, seniorFriendly);
+        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
         // LLM 호출하여 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
         // 챗봇 답변 DB 저장
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
+
         // 최종 응답 데이터 구성 및 반환
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
                 .asrText(asrText)
                 .replyText(reply)
+                .emotion(emotion) // [수정됨] 응답 DTO에 감정 포함
                 .build();
     }
 

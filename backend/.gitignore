@@ -54,3 +54,6 @@ Thumbs.db
 ### 로그 및 임시 파일 ###
 *.log
 /temp/
+
+### 모델 폴더 ###
+/models/
