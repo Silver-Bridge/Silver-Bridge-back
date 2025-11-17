@@ -41,6 +41,9 @@ public class User {
 	@Column(unique = true, nullable = true)
 	private Long kakaoId;
 
+	@Column(nullable = false)
+	private String role; // 기본: ROLE_MEMBER, 보호자: ROLE_NOK
+
     public static User createGeneralUser(String name, String phoneNumber, String password, String birth, Boolean gender, Boolean social, String region, String textsize) {
         return User.builder()
 				.name(name)
@@ -52,6 +55,7 @@ public class User {
 				.region(region)
 				.textsize(textsize)
 				.kakaoId(null)  // 일반 가입 회원은 null
+				.role("ROLE_MEMBER")
 				.build();
     }
 
@@ -65,6 +69,7 @@ public class User {
 				.phoneNumber(tempPhoneNumber)
 				.password(tempPassword)
 				.social(true) // 소셜 가입 플래그
+				.role("ROLE_MEMBER")
 				.build();
 	}
 

@@ -46,16 +46,23 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers(
-//                                "/",
-//                                "/api/users/join",
-//                                "/api/users/login",
-//                                "/api/health",
-//                                "/api/calendar/**"      // 캘린더 API 허용
-//                        ).permitAll()
-//                        .anyRequest().authenticated()
-								.requestMatchers("/api/users/social/kakao", "/api/users/social/register-final").permitAll()
-                                .anyRequest().permitAll()
+                        .requestMatchers(
+                                "/",
+                                "/api/users/join",
+                                "/api/users/login",
+								"/api/users/register-final",
+								"/api/users/social/kakao",
+                                "/api/health",
+                                "/api/calendar/**"
+                        ).permitAll()
+
+						// 보호자만 접근 가능
+						.requestMatchers(
+								"/api/reports/**",
+								"/api/mypage/nok/**",
+								"/api/calendar/**"
+						).hasRole("NOK")
+						.anyRequest().authenticated()
                 )
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtTokenProvider),
