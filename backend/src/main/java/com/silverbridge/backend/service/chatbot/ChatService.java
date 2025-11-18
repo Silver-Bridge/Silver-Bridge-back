@@ -30,9 +30,7 @@ public class ChatService {
     private final LlmClient llmClient;
     private final PromptBuilder promptBuilder;
     private final EmotionClient emotionClient;
-
-    // [수정] TtsClient 주입
-    private final TtsClient ttsClient;
+    private final TtsClient ttsClient; // (원본 코드에 TtsClient가 있었음)
 
     // 어르신 친화적 답변 모드 활성화 여부
     @Value("${chatbot.senior-friendly:true}")
@@ -48,25 +46,32 @@ public class ChatService {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
         String originalText = req.getText();
-        String emotion = emotionClient.analyze(originalText);
+        String emotion = emotionClient.analyze(originalText); // (1) 감정 분석
         saveMessage(session, ChatMessage.Role.USER, originalText);
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
-
-        // LLM 호출하여 "텍스트" 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
-
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
 
-        List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
+        List<MessageDto> updated = latestHistory(session.getId(), historyLimit); // (2) 전체 히스토리 로드
 
-        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
+        // [수정] (3) 반환할 히스토리의 마지막 "user" 메시지에 감정 주입
+        if (!updated.isEmpty()) {
+            // (뒤에서부터 찾아서 가장 최근 user 메시지에 적용)
+            for (int i = updated.size() - 1; i >= 0; i--) {
+                if ("user".equals(updated.get(i).getRole())) {
+                    updated.get(i).setEmotion(emotion);
+                    break;
+                }
+            }
+        }
+
+        // (원본 코드의 주석 처리된 builder를 그대로 사용)
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
-                .history(updated)
-                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
+                .history(updated) // (감정이 주입된 히스토리)
+                .replyAudioUrl(replyAudioUrl)
                 // .replyText(reply) // (history에 포함되므로 주석 처리)
                 // .emotion(emotion) // (history와 연관되므로 주석 처리)
                 .build();
@@ -74,40 +79,35 @@ public class ChatService {
 
     // 음성 입력을 받아 텍스트로 변환 후 챗봇 응답 생성
     @Transactional
-    public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) { // [수정] sessionId 파라미터 추가
-
-        // [수정] 'null' 대신 전달받은 sessionId를 사용
+    public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) {
         ChatSession session = upsertSession(userId, sessionId, regionCode);
-
-        // 음성을 텍스트로 변환 (ASR)
         String asrText = asrClient.transcribe(session.getRegionCode(), file);
-        // ASR 텍스트로 감정 분석 수행
-        String emotion = emotionClient.analyze(asrText);
-        // 변환된 사용자 메시지 DB 저장 (원본 ASR 텍스트)
+        String emotion = emotionClient.analyze(asrText); // (1) 감정 분석
         saveMessage(session, ChatMessage.Role.USER, asrText);
-        // LLM에 전달할 프롬프트용 텍스트 (감정 정보 포함)
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
-
-        // (LLM에 프롬프트로 보낼 대화 기록)
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
-
-        // LLM 호출하여 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
-        // 챗봇 답변 DB 저장
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
-
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
 
-        // [수정] 응답으로 반환할 "최종" 대화 기록을 다시 조회
-        List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
+        List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit); // (2) 전체 히스토리 로드
 
-        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
+        // [수정] (3) 반환할 히스토리의 마지막 "user" 메시지에 감정 주입
+        if (!updatedHistory.isEmpty()) {
+            for (int i = updatedHistory.size() - 1; i >= 0; i--) {
+                if ("user".equals(updatedHistory.get(i).getRole())) {
+                    updatedHistory.get(i).setEmotion(emotion);
+                    break;
+                }
+            }
+        }
+
+        // (원본 코드의 주석 처리된 builder를 그대로 사용)
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
-                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
-                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
+                .history(updatedHistory) // (감정이 주입된 히스토리)
+                .replyAudioUrl(replyAudioUrl)
                 // .asrText(asrText) // (history에 포함되므로 주석 처리)
                 // .replyText(reply) // (history에 포함되므로 주석 처리)
                 // .emotion(emotion) // (history와 연관되므로 주석 처리)
@@ -186,6 +186,7 @@ public class ChatService {
         return messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .sorted(Comparator.comparing(ChatMessage::getCreatedAt))
                 .limit(limit)
+                // [수정] MessageDto(role, content) 2-args 생성자를 호출 (emotion은 null)
                 .map(m -> new MessageDto(m.getRole().name().toLowerCase(), m.getContent()))
                 .collect(Collectors.toList());
     }
