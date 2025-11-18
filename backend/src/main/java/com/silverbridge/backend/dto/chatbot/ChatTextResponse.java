@@ -19,6 +19,9 @@ public class ChatTextResponse {
     // 현재까지의 대화 기록
     private List<MessageDto> history;
 
+    // [수정] 챗봇의 "음성" 응답 URL
+    private String replyAudioUrl;
+
 
 //    // 챗봇의 텍스트 답변
 //    private String replyText;

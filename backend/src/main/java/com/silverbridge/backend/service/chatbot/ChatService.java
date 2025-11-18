@@ -31,6 +31,9 @@ public class ChatService {
     private final PromptBuilder promptBuilder;
     private final EmotionClient emotionClient;
 
+    // [수정] TtsClient 주입
+    private final TtsClient ttsClient;
+
     // 어르신 친화적 답변 모드 활성화 여부
     @Value("${chatbot.senior-friendly:true}")
     private boolean seniorFriendly;
@@ -49,15 +52,22 @@ public class ChatService {
         saveMessage(session, ChatMessage.Role.USER, originalText);
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
+
+        // LLM 호출하여 "텍스트" 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
+
+        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
+        String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
+
         List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
 
-        // [수정] history와 중복되는 필드 주석 처리
+        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
-                // .replyText(reply) // (history에 포함되므로 주석 처리)
                 .history(updated)
+                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
+                // .replyText(reply) // (history에 포함되므로 주석 처리)
                 // .emotion(emotion) // (history와 연관되므로 주석 처리)
                 .build();
     }
@@ -87,16 +97,20 @@ public class ChatService {
         // 챗봇 답변 DB 저장
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
 
+        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
+        String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
+
         // [수정] 응답으로 반환할 "최종" 대화 기록을 다시 조회
         List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
 
-        // [수정] history와 중복되는 필드 주석 처리
+        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
+                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
+                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
                 // .asrText(asrText) // (history에 포함되므로 주석 처리)
                 // .replyText(reply) // (history에 포함되므로 주석 처리)
                 // .emotion(emotion) // (history와 연관되므로 주석 처리)
-                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
                 .build();
     }
 
