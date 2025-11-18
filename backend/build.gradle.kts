@@ -6,6 +6,7 @@ plugins {
 
 group = "com.silverbridge"
 version = "0.0.1-SNAPSHOT"
+val springAiVersion = "1.0.0-M1"
 
 java {
     toolchain {
@@ -15,6 +16,15 @@ java {
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://repo.spring.io/milestone") }
+    maven { url = uri("https://repo.spring.io/snapshot") }
+}
+
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.ai:spring-ai-bom:$springAiVersion")
+    }
 }
 
 dependencies {
@@ -46,6 +56,9 @@ dependencies {
 
     // coolSMS
     implementation ("net.nurigo:sdk:4.3.0")
+
+    // [추가] Spring AI의 OpenAI 스타터
+    implementation("org.springframework.ai:spring-ai-openai-spring-boot-starter")
 
     // 테스트
     testImplementation("org.springframework.boot:spring-boot-starter-test")

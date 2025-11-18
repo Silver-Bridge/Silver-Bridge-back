@@ -24,6 +24,13 @@ spring:
       hibernate:
         format_sql: true
 
+  ai:                           # spring-ai : OpenAI 연결
+    openai:
+      api-key: ${OPENAI_API_KEY}    # .env에서 읽기
+      chat:
+        options:
+          model: gpt-3.5-turbo      # gpt 모델
+
 server:
   port: 8080
 
@@ -45,7 +52,7 @@ chatbot:
     jl-endpoint: "http://localhost:9003/asr/transcribe"
     timeout-ms: 20000
   llm:
-    endpoint: "http://localhost:9100/llm/chat"
+    # endpoint: "http://localhost:9100/llm/chat"
     timeout-ms: 20000
 
 kakao:

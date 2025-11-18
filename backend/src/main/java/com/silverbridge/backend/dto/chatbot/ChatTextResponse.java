@@ -15,11 +15,15 @@ import java.util.List;
 public class ChatTextResponse {
     // 현재 대화 세션 ID
     private Long sessionId;
-    // 챗봇의 텍스트 답변
-    private String replyText;
+
     // 현재까지의 대화 기록
     private List<MessageDto> history;
 
-    // [수정됨] 감정 분석 결과 필드
-    private String emotion;
+
+//    // 챗봇의 텍스트 답변
+//    private String replyText;
+//    // [수정됨] 감정 분석 결과 필드
+//    private String emotion;
+
+
 }

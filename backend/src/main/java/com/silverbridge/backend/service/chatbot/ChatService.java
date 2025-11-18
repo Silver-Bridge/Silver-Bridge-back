@@ -39,7 +39,7 @@ public class ChatService {
     @Value("${chatbot.history-limit:20}")
     private int historyLimit;
 
-    // 텍스트 입력을 받아 챗봇 응답을 생성하는 전체 과정 처리 (변경 없음)
+    // 텍스트 입력을 받아 챗봇 응답을 생성하는 전체 과정 처리
     @Transactional
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
@@ -52,11 +52,13 @@ public class ChatService {
         String reply = llmClient.chat(prompt, seniorFriendly);
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
         List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
+
+        // [수정] history와 중복되는 필드 주석 처리
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
-                .replyText(reply)
+                // .replyText(reply) // (history에 포함되므로 주석 처리)
                 .history(updated)
-                .emotion(emotion)
+                // .emotion(emotion) // (history와 연관되므로 주석 처리)
                 .build();
     }
 
@@ -88,13 +90,13 @@ public class ChatService {
         // [수정] 응답으로 반환할 "최종" 대화 기록을 다시 조회
         List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
 
-        // 최종 응답 데이터 구성 및 반환
+        // [수정] history와 중복되는 필드 주석 처리
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
-                .asrText(asrText)
-                .replyText(reply)
-                .emotion(emotion)
-                .history(updatedHistory) // [수정] history 필드 추가
+                // .asrText(asrText) // (history에 포함되므로 주석 처리)
+                // .replyText(reply) // (history에 포함되므로 주석 처리)
+                // .emotion(emotion) // (history와 연관되므로 주석 처리)
+                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
                 .build();
     }
 
@@ -103,7 +105,7 @@ public class ChatService {
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
         // 세션 조회 및 소유권 확인
         ChatSession s = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("세Sessidion 없음"));
         if (!Objects.equals(s.getUserId(), userId)) {
             throw new AccessControlException("권한 없음");
         }
