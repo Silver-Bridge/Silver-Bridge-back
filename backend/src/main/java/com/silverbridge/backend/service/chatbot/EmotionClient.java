@@ -21,9 +21,8 @@ public class EmotionClient {
     // RestTemplateConfig에서 등록된 빈 주입
     private final RestTemplate restTemplate;
 
-    // application.properties에서 API 엔드포인트 주소 주입
-    // (기본값: http://localhost:8001/emotion/analyze)
-    @Value("${emotion.api.endpoint:http://localhost:8001/emotion/analyze}")
+    // [수정] application.yml의 "chatbot.emotion.api.endpoint" 키를 읽도록 변경
+    @Value("${chatbot.emotion.api.endpoint}")
     private String emotionEndpoint;
 
     /**
@@ -50,6 +49,7 @@ public class EmotionClient {
             HttpEntity<EmotionRequest> requestEntity = new HttpEntity<>(requestPayload, headers);
 
             // 4. FastAPI 서버에 POST 요청 전송 및 응답 수신
+            // (이제 emotionEndpoint는 "http://117.17.185.204:8001/emotion/analyze" 값을 가짐)
             EmotionResponse response = restTemplate.postForObject(emotionEndpoint, requestEntity, EmotionResponse.class);
 
             // 5. 응답 결과에서 감정 텍스트 추출

@@ -31,7 +31,7 @@ public class ChatService {
     private final PromptBuilder promptBuilder;
     private final EmotionClient emotionClient;
 
-    // [수정] TtsClient 주입
+    // [추가] TTS 더미 클라이언트 주입
     private final TtsClient ttsClient;
 
     // 어르신 친화적 답변 모드 활성화 여부
@@ -47,83 +47,87 @@ public class ChatService {
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
+
         String originalText = req.getText();
         String emotion = emotionClient.analyze(originalText);
-        saveMessage(session, ChatMessage.Role.USER, originalText);
+
+        // [수정 후] 감정 정보 포함하여 DB 저장
+        saveMessage(session, ChatMessage.Role.USER, originalText, emotion);
+
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
+
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
-
-        // LLM 호출하여 "텍스트" 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
-        saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
 
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
+        // [수정 후] 챗봇 응답 저장 (챗봇 감정은 null)
+        saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
+
+        // [추가] TTS 음성 변환 (더미 URL 생성)
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
 
+        // [수정] DB에 저장된 감정까지 포함하여 최신 기록 다시 조회
         List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
 
-        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
+                // [삭제] 중복 필드 주석 처리
+                // .replyText(reply)
                 .history(updated)
-                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
-                // .replyText(reply) // (history에 포함되므로 주석 처리)
-                // .emotion(emotion) // (history와 연관되므로 주석 처리)
+                // [삭제] 중복 필드 주석 처리
+                // .emotion(emotion)
+                // [추가] 음성 URL 포함
+                .replyAudioUrl(replyAudioUrl)
                 .build();
     }
 
     // 음성 입력을 받아 텍스트로 변환 후 챗봇 응답 생성
     @Transactional
-    public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) { // [수정] sessionId 파라미터 추가
-
-        // [수정] 'null' 대신 전달받은 sessionId를 사용
+    public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) {
+        // sessionId 전달하여 세션 유지
         ChatSession session = upsertSession(userId, sessionId, regionCode);
 
-        // 음성을 텍스트로 변환 (ASR)
         String asrText = asrClient.transcribe(session.getRegionCode(), file);
-        // ASR 텍스트로 감정 분석 수행
         String emotion = emotionClient.analyze(asrText);
-        // 변환된 사용자 메시지 DB 저장 (원본 ASR 텍스트)
-        saveMessage(session, ChatMessage.Role.USER, asrText);
-        // LLM에 전달할 프롬프트용 텍스트 (감정 정보 포함)
+
+        // 변환된 사용자 메시지 및 감정 정보 DB 저장
+        saveMessage(session, ChatMessage.Role.USER, asrText, emotion);
+
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
 
-        // (LLM에 프롬프트로 보낼 대화 기록)
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
 
-        // LLM 호출하여 답변 생성
         String reply = llmClient.chat(prompt, seniorFriendly);
-        // 챗봇 답변 DB 저장
-        saveMessage(session, ChatMessage.Role.ASSISTANT, reply);
 
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
+        // 챗봇 응답 저장 (감정 null)
+        saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
+
+        // TTS 음성 변환
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
 
-        // [수정] 응답으로 반환할 "최종" 대화 기록을 다시 조회
+        // DB에 저장된 감정까지 포함하여 최신 기록 다시 조회
         List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
 
-        // [수정] history와 중복되는 필드 주석 처리 및 replyAudioUrl 추가
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
-                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
-                .replyAudioUrl(replyAudioUrl) // [수정] 음성 URL 반환
-                // .asrText(asrText) // (history에 포함되므로 주석 처리)
-                // .replyText(reply) // (history에 포함되므로 주석 처리)
-                // .emotion(emotion) // (history와 연관되므로 주석 처리)
+                // [삭제] 중복 필드 주석 처리
+                // .asrText(asrText)
+                // .replyText(reply)
+                // .emotion(emotion)
+                .history(updatedHistory)
+                // 음성 URL 포함
+                .replyAudioUrl(replyAudioUrl)
                 .build();
     }
 
     // 특정 세션의 대화 기록 조회
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
-        // 세션 조회 및 소유권 확인
         ChatSession s = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세Sessidion 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
         if (!Objects.equals(s.getUserId(), userId)) {
             throw new AccessControlException("권한 없음");
         }
-        // 최신 대화 기록 반환
         return latestHistory(sessionId, Math.max(historyLimit, 50));
     }
 
@@ -136,57 +140,59 @@ public class ChatService {
     // 사용자 세션 삭제
     @Transactional
     public void deleteSession(Long userId, Long sessionId) {
-        // 세션 조회 및 소유권 확인
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
         if (!Objects.equals(session.getUserId(), userId)) {
             throw new AccessControlException("본인 세션만 삭제할 수 있습니다.");
         }
-        // 연관된 메시지 삭제 후 세션 삭제
         messageRepo.deleteAll(messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId));
         sessionRepo.delete(session);
     }
 
-    // 기존 세션 조회 또는 신규 세션 생성 (Upsert)
+    // 기존 세션 조회 또는 신규 세션 생성
     private ChatSession upsertSession(Long userId, Long sessionId, String regionCode) {
         ChatSession session;
         if (sessionId != null) {
-            // 기존 세션 ID가 있는 경우, 조회 및 소유권 확인
             session = sessionRepo.findById(sessionId)
                     .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
             if (!Objects.equals(session.getUserId(), userId)) {
                 throw new AccessControlException("권한 없음");
             }
-            // 지역 코드 변경 요청이 있으면 업데이트
             if (regionCode != null && !regionCode.isBlank()) {
                 session.setRegionCode(regionCode);
             }
         } else {
-            // 새 세션 생성
             session = new ChatSession();
             session.setUserId(userId);
             session.setRegionCode(regionCode == null || regionCode.isBlank() ? "std" : regionCode);
         }
-        // 변경사항 저장 (save는 insert와 update 모두 처리)
         return sessionRepo.save(session);
     }
 
-    // 채팅 메시지 DB 저장
-    private void saveMessage(ChatSession s, ChatMessage.Role role, String content) {
+
+    // emotion 파라미터 추가하여 DB 저장
+    private void saveMessage(ChatSession s, ChatMessage.Role role, String content, String emotion) {
         ChatMessage m = new ChatMessage();
         m.setSession(s);
         m.setRole(role);
         m.setContent(content);
+        m.setEmotion(emotion); // 엔티티에 감정 저장
         messageRepo.save(m);
     }
 
     // 세션의 최근 대화 기록을 DTO 리스트로 변환하여 조회
     private List<MessageDto> latestHistory(Long sessionId, int limit) {
-        // DB에서 생성 시간 역순으로 조회 후, 다시 시간순으로 정렬
         return messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .sorted(Comparator.comparing(ChatMessage::getCreatedAt))
                 .limit(limit)
-                .map(m -> new MessageDto(m.getRole().name().toLowerCase(), m.getContent()))
+                // [수정 전] 감정 미포함 생성자 사용
+                // .map(m -> new MessageDto(m.getRole().name().toLowerCase(), m.getContent()))
+                // [수정 후] DB에 저장된 감정(m.getEmotion())을 포함하여 DTO 생성
+                .map(m -> new MessageDto(
+                        m.getRole().name().toLowerCase(),
+                        m.getContent(),
+                        m.getEmotion()
+                ))
                 .collect(Collectors.toList());
     }
 }

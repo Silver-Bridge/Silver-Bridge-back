@@ -47,13 +47,15 @@ chatbot:
   senior-friendly: true
   history-limit: 20
   asr:
-    std-endpoint: "http://localhost:9001/asr/transcribe"
-    gs-endpoint: "http://localhost:9002/asr/transcribe"
-    jl-endpoint: "http://localhost:9003/asr/transcribe"
+    std-endpoint: "http://117.17.185.204:9001/asr/transcribe"
+    gs-endpoint: "http://117.17.185.204:9001/asr/transcribe"
+    jl-endpoint: "http://117.17.185.204:9001/asr/transcribe"
     timeout-ms: 20000
   llm:
-    # endpoint: "http://localhost:9100/llm/chat"
     timeout-ms: 20000
+  emotion:
+    api:
+      endpoint: "http://117.17.185.204:8001/emotion/analyze"
 
 kakao:
   client-id: ${KAKAO_REST_API_KEY}
