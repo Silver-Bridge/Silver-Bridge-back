@@ -53,6 +53,10 @@ chatbot:
     timeout-ms: 20000
   llm:
     timeout-ms: 20000
+  tts:
+    openai:
+      url: "https://api.openai.com/v1/audio/speech"
+      model: "tts-1"
   emotion:
     api:
       endpoint: "http://117.17.185.204:8001/emotion/analyze"
