@@ -29,7 +29,13 @@ public class ChatMessage {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
+    // [수정] 감정 분석 결과 저장 컬럼
+    // (ASSISTANT 역할은 null일 수 있으므로 nullable = true (기본값))
+    @Column(length = 32) // (감정 문자열 길이에 맞게 설정, 예: "불안", "기쁨")
+    private String emotion;
+
     // 메시지 생성 시간
+    @Column(nullable = false) // (생성 시간은 항상 있어야 하므로 nullable = false 권장)
     private LocalDateTime createdAt;
 
     // 메시지 발신자 역할을 정의하는 Enum
