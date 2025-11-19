@@ -13,6 +13,10 @@ import java.util.List;
 @NoArgsConstructor // Jackson/JPA를 위한 기본 생성자
 @AllArgsConstructor // Builder가 모든 필드를 인식하도록 추가
 public class ChatTextResponse {
+
+    // [추가] 현재 대화를 진행 중인 사용자 ID
+    private Long userId;
+
     // 현재 대화 세션 ID
     private Long sessionId;
 

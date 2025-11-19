@@ -12,6 +12,10 @@ import java.util.List; // [수정] List 임포트
 @NoArgsConstructor // [수정] Jackson/JPA를 위한 기본 생성자
 @AllArgsConstructor // [수정] Builder가 모든 필드를 인식하도록 추가
 public class ChatVoiceResponse {
+
+    // [추가] 현재 대화를 진행 중인 사용자 ID
+    private Long userId;
+
     // 현재 대화 세션 ID
     private Long sessionId;
 //    // 사용자 음성을 텍스트로 변환한 결과 (ASR)
