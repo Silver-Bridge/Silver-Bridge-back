@@ -53,14 +53,25 @@ public class SecurityConfig {
 								"/api/users/register-final",
 								"/api/users/social/kakao",
                                 "/api/health",
-                                "/api/calendar/**"
+								"api/sms/**"
                         ).permitAll()
+
+						// 노인, 보호자 모두 접근 가능
+						.requestMatchers("/api/calendar/**")
+						.hasAnyRole("MEMBER", "NOK")
+
+						// 노인만 접근 가능
+						// TODO: 챗봇 endpoint?
+						.requestMatchers(
+								"/api/mypage/**"
+						).hasRole("MEMBER")
+						.anyRequest().authenticated()
+
 
 						// 보호자만 접근 가능
 						.requestMatchers(
-								"/api/reports/**",
-								"/api/mypage/nok/**",
-								"/api/calendar/**"
+								"/api/emotions/**",
+								"/api/mypage/nok/**"
 						).hasRole("NOK")
 						.anyRequest().authenticated()
                 )
