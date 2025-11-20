@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/nok")
+@RequestMapping("/api/mypage/nok")
 public class GuardianController {
 
 	private final ConnectElderService connectElderService;
