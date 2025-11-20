@@ -4,6 +4,7 @@
  */
 package com.silverbridge.backend.handler;
 
+import com.silverbridge.backend.exception.CustomException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -64,4 +65,13 @@ public class GlobalExceptionHandler {
 				return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
 			}
 		}
+
+	// 703: CustomException 처리 (보호자-노인 매핑 오류 등 비즈니스 로직 오류)
+	@ExceptionHandler(CustomException.class)
+	public ResponseEntity<Map<String, Object>> handleCustomException(CustomException ex) {
+		Map<String, Object> responseBody = new HashMap<>();
+		responseBody.put("code", 703);   // 커스텀 비즈니스 로직 에러
+		responseBody.put("message", ex.getMessage());
+		return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
+	}
 }
