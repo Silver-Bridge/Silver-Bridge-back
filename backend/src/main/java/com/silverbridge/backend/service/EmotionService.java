@@ -1,6 +1,7 @@
 package com.silverbridge.backend.service;
 
 import com.silverbridge.backend.dto.EmotionCountDto;
+import com.silverbridge.backend.dto.EmotionCountProjection;
 import com.silverbridge.backend.repository.EmotionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -54,4 +56,27 @@ public class EmotionService {
 				))
 				.toList();
 	}
+
+	public EmotionCountDto getTodayTopEmotion(Long userId) {
+
+		LocalDate today = LocalDate.now();
+		LocalDateTime startOfDay = today.atStartOfDay();           // 00:00
+		LocalDateTime sixPM = today.atTime(18, 0, 0);              // 18:00
+
+		List<EmotionCountProjection> result =
+				emotionRepository.getEmotionSummaryNative(userId, startOfDay, sixPM);
+
+		if (result.isEmpty()) {
+			return new EmotionCountDto("none", 0L);
+		}
+
+		EmotionCountProjection top = result.stream()
+				.max(Comparator.comparingLong(EmotionCountProjection::getCnt))
+				.get();
+
+		return new EmotionCountDto(top.getEmotion(), top.getCnt());
+	}
+
+
+
 }
