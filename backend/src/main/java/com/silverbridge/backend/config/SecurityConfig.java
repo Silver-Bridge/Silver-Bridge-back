@@ -16,8 +16,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+
+@EnableWebSecurity(debug = true)
 @Configuration
-@EnableWebSecurity
+
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -53,17 +55,19 @@ public class SecurityConfig {
 								"/api/users/register-final",
 								"/api/users/social/kakao",
                                 "/api/health",
-								"api/sms/**"
+								"/api/sms/**"
                         ).permitAll()
 
 						// 노인, 보호자 모두 접근 가능
-						.requestMatchers("/api/calendar/**")
+						.requestMatchers(
+								"/api/mypage/password-update",
+								"/api/mypage/alarm")
 						.hasAnyRole("MEMBER", "NOK")
 
 						// 노인만 접근 가능
-						// TODO: 챗봇 endpoint?
 						.requestMatchers(
-								"/api/mypage/**"
+								"/api/chatbot/**",
+								"/api/mypage/member/**"
 						).hasRole("MEMBER")
 
 						// 보호자만 접근 가능
