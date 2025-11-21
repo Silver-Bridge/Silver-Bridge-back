@@ -65,8 +65,6 @@ public class SecurityConfig {
 						.requestMatchers(
 								"/api/mypage/**"
 						).hasRole("MEMBER")
-						.anyRequest().authenticated()
-
 
 						// 보호자만 접근 가능
 						.requestMatchers(
