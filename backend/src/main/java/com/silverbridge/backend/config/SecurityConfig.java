@@ -61,8 +61,9 @@ public class SecurityConfig {
 						// 노인, 보호자 모두 접근 가능
 						.requestMatchers(
 								"/api/mypage/password-update",
-								"/api/mypage/alarm")
-						.hasAnyRole("MEMBER", "NOK")
+								"/api/mypage/alarm",
+								"/api/calendar/**"
+						).hasAnyRole("MEMBER", "NOK")
 
 						// 노인만 접근 가능
 						.requestMatchers(

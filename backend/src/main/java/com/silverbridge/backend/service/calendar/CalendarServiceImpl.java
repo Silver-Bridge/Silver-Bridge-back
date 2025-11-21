@@ -21,36 +21,21 @@ public class CalendarServiceImpl implements CalendarService {
 	private final CalendarEventRepository eventRepo;
 	private final UserRepository userRepo;
 
-	// 보호자 → 노인 캘린더 매핑 공통 메서드
-	private Long resolveRealUserId(Long userId) {
-		User u = userRepo.findById(userId)
-				.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
-		// 보호자면 연결된 노인의 ID로 변경
-		if ("ROLE_NOK".equals(u.getRole()) && u.getConnectedElderId() != null) {
-			return u.getConnectedElderId();
-		}
-
-		return userId;
-	}
-
 	// 특정 월의 일정 조회
 	@Override
-	public List<CalendarDateItem> getCalendarDates(Long userId, int year, int month) {
-
-		Long realUserId = resolveRealUserId(userId);
+	public List<CalendarDateItem> getCalendarDates(Long elderId, int year, int month) {
 
 		LocalDate start = LocalDate.of(year, month, 1);
 		LocalDate end = start.plusMonths(1).minusDays(1);
 
 		return eventRepo.findByUserIdAndStartAtBetween(
-						realUserId,
+						elderId,
 						start.atStartOfDay(),
 						end.atTime(23, 59))
 				.stream()
 				.map(e -> CalendarDateItem.builder()
 						.id(e.getId())
-						.memberId(e.getUser().getId()) // 캘린더 주인 ID (elder)
+						.memberId(e.getUser().getId())
 						.date(e.getStartAt().toLocalDate())
 						.build())
 				.collect(Collectors.toList());
@@ -58,12 +43,10 @@ public class CalendarServiceImpl implements CalendarService {
 
 	// 특정 날짜 일정 조회
 	@Override
-	public List<ScheduleItem> getSchedules(Long userId, LocalDate date) {
-
-		Long realUserId = resolveRealUserId(userId);
+	public List<ScheduleItem> getSchedules(Long elderId, LocalDate date) {
 
 		return eventRepo.findByUserIdAndStartAtBetween(
-						realUserId,
+						elderId,
 						date.atStartOfDay(),
 						date.atTime(23, 59))
 				.stream()
@@ -74,11 +57,9 @@ public class CalendarServiceImpl implements CalendarService {
 	// 일정 생성
 	@Override
 	@Transactional
-	public void addSchedule(Long userId, CreateScheduleRequest req) {
+	public void addSchedule(Long elderId, CreateScheduleRequest req) {
 
-		Long realUserId = resolveRealUserId(userId);
-
-		User user = userRepo.findById(realUserId)
+		User user = userRepo.findById(elderId)
 				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
 		CalendarEvent event = CalendarEvent.builder()
@@ -100,14 +81,12 @@ public class CalendarServiceImpl implements CalendarService {
 	// 일정 수정
 	@Override
 	@Transactional
-	public ScheduleItem updateSchedule(Long userId, Long scheduleId, UpdateScheduleRequest req) {
-
-		Long realUserId = resolveRealUserId(userId);
+	public ScheduleItem updateSchedule(Long elderId, Long scheduleId, UpdateScheduleRequest req) {
 
 		CalendarEvent e = eventRepo.findById(scheduleId)
 				.orElseThrow(() -> new IllegalArgumentException("수정할 일정이 없습니다."));
 
-		if (!e.getUser().getId().equals(realUserId)) {
+		if (!e.getUser().getId().equals(elderId)) {
 			throw new SecurityException("본인 일정만 수정할 수 있습니다.");
 		}
 
@@ -127,14 +106,12 @@ public class CalendarServiceImpl implements CalendarService {
 	// 일정 삭제
 	@Override
 	@Transactional
-	public void deleteSchedule(Long userId, Long scheduleId) {
-
-		Long realUserId = resolveRealUserId(userId);
+	public void deleteSchedule(Long elderId, Long scheduleId) {
 
 		CalendarEvent e = eventRepo.findById(scheduleId)
 				.orElseThrow(() -> new IllegalArgumentException("삭제할 일정이 없습니다."));
 
-		if (!e.getUser().getId().equals(realUserId)) {
+		if (!e.getUser().getId().equals(elderId)) {
 			throw new SecurityException("본인 일정만 삭제할 수 있습니다.");
 		}
 
@@ -156,3 +133,4 @@ public class CalendarServiceImpl implements CalendarService {
 				.build();
 	}
 }
+

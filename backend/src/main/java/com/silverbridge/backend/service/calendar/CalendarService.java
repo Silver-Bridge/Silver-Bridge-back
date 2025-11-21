@@ -9,17 +9,17 @@ import java.util.List;
 public interface CalendarService {
 
     // 특정 월의 일정 유무 목록 조회
-    List<CalendarDateItem> getCalendarDates(Long userId, int year, int month);
+    List<CalendarDateItem> getCalendarDates(Long elderId, int year, int month);
 
     // 특정 날짜의 상세 일정 목록 조회
-    List<ScheduleItem> getSchedules(Long userId, LocalDate date);
+    List<ScheduleItem> getSchedules(Long elderId, LocalDate date);
 
     // 신규 일정 추가
-    void addSchedule(Long userId, CreateScheduleRequest req);
+    void addSchedule(Long elderId, CreateScheduleRequest req);
 
     // 기존 일정 수정
-    ScheduleItem updateSchedule(Long userId, Long scheduleId, UpdateScheduleRequest req);
+    ScheduleItem updateSchedule(Long elderId, Long scheduleId, UpdateScheduleRequest req);
 
     // 기존 일정 삭제
-    void deleteSchedule(Long userId, Long scheduleId);
+    void deleteSchedule(Long elderId, Long scheduleId);
 }
