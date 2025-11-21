@@ -42,11 +42,25 @@ public class User {
 	private Long kakaoId;
 
 	@Column(nullable = false)
-	private String role; // 기본: ROLE_MEMBER, 보호자: ROLE_NOK
+	private String role; // 노인: ROLE_MEMBER, 보호자: ROLE_NOK
 
 	private Long connectedElderId;
 
-    public static User createGeneralUser(String name, String phoneNumber, String password, String birth, Boolean gender, Boolean social, String region, String textsize) {
+	@Column(nullable = false)
+	private Boolean alarmActive = true;
+
+
+	public static User createGeneralUser(
+			String name,
+			String phoneNumber,
+			String password,
+			String birth,
+			Boolean gender,
+			Boolean social,
+			String region,
+			String textsize,
+			String role) {
+
         return User.builder()
 				.name(name)
 				.phoneNumber(phoneNumber)
@@ -57,7 +71,7 @@ public class User {
 				.region(region)
 				.textsize(textsize)
 				.kakaoId(null)  // 일반 가입 회원은 null
-				.role("ROLE_MEMBER")
+				.role(role)
 				.connectedElderId(null)
 				.build();
     }

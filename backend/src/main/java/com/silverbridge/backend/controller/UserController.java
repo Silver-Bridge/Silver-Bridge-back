@@ -40,9 +40,11 @@ public class UserController {
 
             Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
-            TokenDto tokenDto = userService.generateTokens(authentication.getName());
+//            TokenDto tokenDto = userService.generateTokens(authentication.getName());
+			TokenDto tokenDto = userService.generateTokens(authentication);
 
-            HttpHeaders headers = new HttpHeaders();
+
+			HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.AUTHORIZATION, "Bearer " + tokenDto.getAccessToken());
             headers.add("Refresh-Token", tokenDto.getRefreshToken());
 
