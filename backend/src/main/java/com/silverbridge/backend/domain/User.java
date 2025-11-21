@@ -73,6 +73,7 @@ public class User {
 				.kakaoId(null)  // 일반 가입 회원은 null
 				.role(role)
 				.connectedElderId(null)
+				.alarmActive(true)
 				.build();
     }
 
