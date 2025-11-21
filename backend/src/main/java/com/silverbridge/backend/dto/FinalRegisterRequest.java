@@ -30,4 +30,7 @@ public class FinalRegisterRequest {
 
 	@NotBlank(message = "글자 크기는 필수 입력 값입니다.")
 	private String textsize;
+
+	@NotBlank(message = "노인/보호자 권한은 필수 입력 값입니다.")
+	private String role;
 }

@@ -96,6 +96,25 @@ public class UserService {
 	// 추가정보 입력 완료 후 최종 회원가입 + 통합 처리
 	@Transactional
 	public TokenDto completeSocialRegistration(Long kakaoId, FinalRegisterRequest request) {
+
+		// 역할(role) 필수 체크
+		if (request.getRole() == null || request.getRole().isBlank()) {
+			throw new IllegalArgumentException("역할(노인/보호자) 선택은 필수입니다.");
+		}
+
+		// 노인(MEMBER)일 경우 textsize 필수
+		if (request.getRole().equals("ROLE_MEMBER")) {
+			if (request.getTextsize() == null || request.getTextsize().isBlank()) {
+				throw new IllegalArgumentException("노인 가입 시 글자 크기는 필수입니다.");
+			}
+		}
+
+		// 보호자(NOK)일 경우 textsize를 null 처리해도 됨 (원하면 기본값 지정 가능)
+		if (request.getRole().equals("ROLE_NOK")) {
+			// 보호자는 textsize를 사용하지 않으니 null로 초기화
+			request.setTextsize(null);
+		}
+
 		// phoneNumber로 기존 일반회원 탐색
 		Optional<User> existingUser = userRepository.findByPhoneNumber(request.getPhoneNumber());
 

@@ -36,6 +36,8 @@ public class User {
     private Boolean social;
 
     private String region;
+
+	@Column(nullable = true) // 보호자는 크기 변경 불가.
     private String textsize;
 
 	@Column(unique = true, nullable = true)
@@ -86,9 +88,14 @@ public class User {
 				.name(name)
 				.phoneNumber(tempPhoneNumber)
 				.password(tempPassword)
+				.birth(null)
+				.gender(false) // 기본값
+				.textsize(null) // 기본값
 				.social(true) // 소셜 가입 플래그
-				.role("ROLE_MEMBER")
+				.role("ROLE_MEMBER") // 기본값
+				.region(null) // 빈 상태
 				.connectedElderId(null)
+				.alarmActive(true)
 				.build();
 	}
 
@@ -109,6 +116,7 @@ public class User {
 		this.gender = request.getGender();
 		this.region = request.getRegion();
 		this.textsize = request.getTextsize();
+		this.role = request.getRole();
 	}
 
 	// 보호자 - 노인 연결
