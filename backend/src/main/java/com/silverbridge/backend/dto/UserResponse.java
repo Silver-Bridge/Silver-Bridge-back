@@ -16,6 +16,10 @@ public class UserResponse {
 	private String region;
 	private String textsize;
 	private Boolean social;
+	private String role;
+	private Long connectedElderId;
+	private Boolean alarmActive;
+
 
 	public static UserResponse from(User user) {
 		return UserResponse.builder()
@@ -27,6 +31,9 @@ public class UserResponse {
 				.region(user.getRegion())
 				.textsize(user.getTextsize())
 				.social(user.getSocial())
+				.role(user.getRole())
+				.connectedElderId(user.getConnectedElderId())
+				.alarmActive(user.getAlarmActive())
 				.build();
 	}
 }

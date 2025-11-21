@@ -1,5 +1,6 @@
 package com.silverbridge.backend.controller;
 
+import com.silverbridge.backend.domain.User;
 import com.silverbridge.backend.dto.*;
 import com.silverbridge.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ public class UserController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
         try {
             UsernamePasswordAuthenticationToken authenticationToken =
                     new UsernamePasswordAuthenticationToken(request.getPhoneNumber(), request.getPassword());
@@ -43,16 +44,21 @@ public class UserController {
 //            TokenDto tokenDto = userService.generateTokens(authentication.getName());
 			TokenDto tokenDto = userService.generateTokens(authentication);
 
+			User user = userService.findByPhoneNumber(request.getPhoneNumber());
+			UserResponse response = UserResponse.from(user);
+
 
 			HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.AUTHORIZATION, "Bearer " + tokenDto.getAccessToken());
             headers.add("Refresh-Token", tokenDto.getRefreshToken());
 
-            return new ResponseEntity<>("로그인 성공", headers, HttpStatus.OK);
+			return ResponseEntity.ok()
+					.headers(headers)
+					.body(response);
 
-        } catch (Exception e) {
-            return new ResponseEntity<>("아이디 또는 비밀번호가 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
-        }
+		} catch (Exception e) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
     }
 
 	// 로그아웃
@@ -82,4 +88,5 @@ public class UserController {
 
 		return ResponseEntity.ok(userInfo);
 	}
+
 }

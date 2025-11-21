@@ -220,4 +220,12 @@ public class UserService {
 
 		return UserResponse.from(user);
 	}
+
+	@Transactional(readOnly = true)
+	public User findByPhoneNumber(String phoneNumber) {
+		return userRepository.findByPhoneNumber(phoneNumber)
+				.orElseThrow(() ->
+						new IllegalArgumentException("해당 전화번호로 가입된 사용자를 찾을 수 없습니다."));
+	}
+
 }
