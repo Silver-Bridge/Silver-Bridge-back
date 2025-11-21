@@ -9,6 +9,7 @@ import com.silverbridge.backend.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,8 @@ public class UserService {
 				request.getGender(),
 				false,
 				request.getRegion(),
-				request.getTextsize()
+				request.getTextsize(),
+				request.getRole()
 		);
 		userRepository.save(user);
 	}
@@ -133,42 +135,55 @@ public class UserService {
 	}
 
     // 로그인 메서드는 토큰 생성만 담당
-    @Transactional
-    public TokenDto generateTokens(User user) {
-        // JWT 토큰 생성을 위한 Authentication 객체 수동 생성
-        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getPhoneNumber(), user.getPassword(), Collections.emptyList());
+	@Transactional
+	public TokenDto generateTokens(User user) {
 
-        String accessToken = jwtTokenProvider.createAccessToken(authentication);
-        String refreshToken = jwtTokenProvider.createRefreshToken();
+		// ROLE 삽입
+		SimpleGrantedAuthority authority = new SimpleGrantedAuthority(user.getRole());
+		Authentication authentication =
+				new UsernamePasswordAuthenticationToken(
+						user.getPhoneNumber(),
+						user.getPassword(),
+						Collections.singletonList(authority)
+				);
 
-		LocalDateTime expiryDate = LocalDateTime.now().plusDays(7); // 7일
+		// JWT 생성
+		String accessToken = jwtTokenProvider.createAccessToken(authentication);
+		String refreshToken = jwtTokenProvider.createRefreshToken();
 
-		// DB에 리프레시 토큰 저장 (기존 토큰이 있으면 업데이트, 없으면 새로 생성)
-        refreshTokenRepository.findByUser(user).ifPresentOrElse(
-                token -> token.updateRefreshToken(refreshToken, expiryDate),
-                () -> refreshTokenRepository.save(
-						RefreshToken.builder()
-								.user(user)
-								.refreshToken(refreshToken)
-								.expiryDate(expiryDate) // 만료일 설정
-								.build()
-                )
-        );
-        return TokenDto.builder()
-                .grantType("Bearer")
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
-    }
+		LocalDateTime expiryDate = LocalDateTime.now().plusDays(7);
+
+		// Refresh Token 저장
+		refreshTokenRepository.findByUser(user)
+				.ifPresentOrElse(
+						token -> token.updateRefreshToken(refreshToken, expiryDate),
+						() -> refreshTokenRepository.save(
+								RefreshToken.builder()
+										.user(user)
+										.refreshToken(refreshToken)
+										.expiryDate(expiryDate)
+										.build()
+						)
+				);
+
+		return TokenDto.builder()
+				.grantType("Bearer")
+				.accessToken(accessToken)
+				.refreshToken(refreshToken)
+				.build();
+	}
 
 	// 일반 로그인
 	@Transactional
-	public TokenDto generateTokens(String phoneNumber) {
+	public TokenDto generateTokens(Authentication authentication) {
+
+		String phoneNumber = authentication.getName();
 		User user = userRepository.findByPhoneNumber(phoneNumber)
 				.orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다."));
 
 		return generateTokens(user);
 	}
+
 
 	// 로그아웃 메서드
 	@Transactional

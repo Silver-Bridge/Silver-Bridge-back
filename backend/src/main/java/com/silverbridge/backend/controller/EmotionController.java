@@ -5,12 +5,14 @@ import com.silverbridge.backend.repository.UserRepository;
 import com.silverbridge.backend.service.EmotionService;
 import lombok.RequiredArgsConstructor;
 import com.silverbridge.backend.domain.User;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/emotions")
@@ -18,6 +20,27 @@ public class EmotionController {
 
 	private final EmotionService emotionService;
 	private final UserRepository userRepository;
+
+	// 당일 감정 최댓값 반환
+	@GetMapping("/today/top")
+	public ResponseEntity<?> getTodayTopEmotion(Authentication authentication) {
+
+		String phoneNumber = authentication.getName();
+
+		User user = userRepository.findByPhoneNumber(phoneNumber)
+				.orElseThrow(() -> new RuntimeException("사용자 없음"));
+
+		Long userId = user.getId();
+
+		log.info("USER INFO: id={}, phone={}, role={}", user.getId(), user.getPhoneNumber(), user.getRole());
+
+
+		EmotionCountDto result = emotionService.getTodayTopEmotion(userId);
+
+		return ResponseEntity.ok(result);
+	}
+
+
 
 	// 1주치 감정 요약
 	@GetMapping("/weekly/last")
