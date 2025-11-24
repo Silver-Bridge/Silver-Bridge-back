@@ -53,7 +53,7 @@ public class ChatService {
         saveMessage(session, ChatMessage.Role.USER, originalText, emotion);
 
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
-        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
+        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, emotion, seniorFriendly);
 
         String reply = llmClient.chat(prompt, seniorFriendly);
 
@@ -89,7 +89,7 @@ public class ChatService {
 
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
-        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
+        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, emotion, seniorFriendly);
 
         String reply = llmClient.chat(prompt, seniorFriendly);
 
