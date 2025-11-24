@@ -107,6 +107,8 @@ public class ChatService {
 
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
+                .userId(userId)
+                .title(session.getTitle())
                 .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
                 .replyAudioUrl(replyAudioUrl) // 음성 URL 포함
                 .build();
