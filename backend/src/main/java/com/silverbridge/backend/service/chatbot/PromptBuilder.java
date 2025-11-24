@@ -11,31 +11,90 @@ import java.util.stream.Collectors;
 @Component
 public class PromptBuilder {
 
-    // 대화 기록, 사용자 메시지, 시스템 메시지를 조합하여 LLM용 프롬프트 생성
-    public List<MessageDto> build(List<MessageDto> history, String userMsg, boolean seniorFriendly) {
+    /**
+     * 감정 코드(0~6)를 반영하여 시스템 프롬프트를 동적으로 생성하는 메서드
+     */
+    public List<MessageDto> build(List<MessageDto> history, String userMsg, String emotionCode, boolean seniorFriendly) {
         List<MessageDto> msgs = new ArrayList<>();
 
-        // [수정] 노인 친화 모드 시스템 프롬프트 강화 (답변 길이/어휘 가이드 포함)
-        String system = seniorFriendly
-                ? "당신은 70대 어르신을 위한 전문적이고 다정다감한 인공지능 말벗입니다. " +
-                "사용자가 '감정: [XX]' 상태로 말한 내용을 분석하고 공감하여, " +
-                "최대한 쉬운 어휘와 짧고 친절한 문장으로 답변해야 합니다. " +
-                "답변은 50자 내외로 간결하게 작성합니다. 필요 없는 긴 설명은 생략합니다."
-                : "You are a helpful assistant.";
+        // 1. 기본 시스템 페르소나 설정 (영어로 번역 및 최적화)
+        StringBuilder systemPrompt = new StringBuilder();
 
-        // 1. 시스템 메시지 추가
-        msgs.add(new MessageDto("system", system));
+        if (seniorFriendly) {
+            // ▼▼▼ [Senior Friendly English Prompt] ▼▼▼
+            systemPrompt.append("You are 'SilverBridge', a professional and warm-hearted AI companion for seniors. ");
+            systemPrompt.append("Always respond in Korean. Use simple words and short, kind sentences. ");
+            systemPrompt.append("Keep the response concise, under 50 characters, and omit lengthy explanations. ");
 
-        // 2. 기존 대화 기록 추가 (시스템 프롬프트는 emotion 필드 제외)
+            // ▼▼▼ [핵심] 감정 코드에 따른 맞춤형 행동 지침 추가 (영어로) ▼▼▼
+            String instruction = getEmotionInstruction(emotionCode);
+            systemPrompt.append("\n\n[Current User State and Response Directive]\n").append(instruction);
+        } else {
+            systemPrompt.append("You are a helpful assistant.");
+        }
+
+        // 2. 시스템 메시지 추가
+        msgs.add(new MessageDto("system", systemPrompt.toString()));
+
+        // 3. 기존 대화 기록 추가
         if (history != null && !history.isEmpty()) {
             msgs.addAll(history.stream()
                     .map(m -> new MessageDto(m.getRole(), m.getContent()))
                     .collect(Collectors.toList()));
         }
 
-        // 3. 현재 사용자 메시지 추가 (ChatService에서 감정 정보가 이미 content에 포함되어 있음)
+        // 4. 현재 사용자 메시지 추가
         msgs.add(new MessageDto("user", userMsg));
 
         return msgs;
+    }
+
+    public List<MessageDto> buildTitlePrompt(String userMsg, String botResponse) {
+        List<MessageDto> msgs = new ArrayList<>();
+
+        // ▼▼▼ [Title Generation English Prompt] ▼▼▼
+        String systemInstruction = "You are an expert in summarizing conversations into a concise title under 15 characters. " +
+                "Output only the title text in Korean (한국어), ending in a noun form, without quotes or punctuation.";
+        msgs.add(new MessageDto("system", systemInstruction));
+
+        String content = "Generate a title for the following conversation:\n" +
+                "User: " + userMsg + "\n" +
+                "AI: " + botResponse;
+        msgs.add(new MessageDto("user", content));
+
+        return msgs;
+    }
+
+    /**
+     * 감정 코드(0~6)별 AI 행동 지침 매핑 및 반환 (사용자 정의 분류표 및 영어 적용)
+     */
+    private String getEmotionInstruction(String code) {
+        if (code == null) code = "6"; // 기본값 (Neutral)
+
+        return switch (code) {
+            case "0" -> // 긍정 계열 (기쁨, 행복, 사랑스러움)
+                    "User is highly positive/happy. Share their joy, actively affirm them, and amplify the cheerful atmosphere.";
+
+            case "1" -> // 슬픔 계열 (슬픔, 상처)
+                    "User is sad/hurt. Offer deep empathy and gentle consolation, focusing on active listening and warmth. Acknowledge their pain first.";
+
+            case "2" -> // 분노 계열 (분노, 화남)
+                    "User is angry. Do not contradict or defend. Acknowledge their anger immediately, then focus on calming them with a very composed tone.";
+
+            case "3" -> // 불안 계열 (불안, 공포, 두려움, 당황)
+                    "User is anxious/fearful. Provide reassurance and stability with a firm, trustworthy tone (e.g., 'Don't worry, I will help').";
+
+            case "4" -> // 놀람 계열 (놀람)
+                    "User is surprised/shocked. Use a careful, calm tone. Prioritize understanding the situation and helping the user regain composure.";
+
+            case "5" -> // 혐오 계열 (혐오)
+                    "User is expressing disgust/discomfort. Immediately pivot away from the topic to a cheerful, positive subject to improve their mood.";
+
+            case "6" -> // 중립 계열 (중립)
+                    "User is neutral. Introduce friendly, useful daily topics (health, weather, meals) to initiate and maintain an engaging conversation.";
+
+            default ->
+                    "Emotion code is unclear. Respond kindly and warmly.";
+        };
     }
 }

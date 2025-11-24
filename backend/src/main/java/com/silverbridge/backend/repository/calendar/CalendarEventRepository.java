@@ -10,4 +10,6 @@ import java.util.List;
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Long> {
     // 특정 사용자의 특정 기간 내에 시작되는 일정 목록 조회
     List<CalendarEvent> findByUserIdAndStartAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
+    // 스케줄러용 검색 메서드
+    List<CalendarEvent> findAllByAlarmTimeBeforeAndIsAlarmSentFalse(LocalDateTime now);
 }

@@ -66,6 +66,15 @@ public class CalendarEvent {
     @Column(name = "alarm_time")
     private LocalDateTime alarmTime;
 
+    // 사용자가 설정한 알림(분)
+    @Column(name = "alarm_minutes")
+    private Integer alarmMinutes;
+
+    // 알림 발송 여부 체크(중복 발송 방지)
+    @Column(name = "is_alarm_sent")
+    @Builder.Default
+    private Boolean isAlarmSent = false;
+
     // 일정 생성 시간
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -87,6 +96,20 @@ public class CalendarEvent {
         updatedAt = LocalDateTime.now();
     }
 
+    // 시작시간, 설정(분) 기반으로 alarmTime 자동계산
+    public void updateAlarm(Integer alarmMinutes) {
+        this.alarmMinutes = alarmMinutes;
+
+        if (alarmMinutes != null && alarmMinutes >= 0 && this.startAt != null) {
+            // 예: 10분 전이면, 시작 시간에서 10분을 뺌
+            this.alarmTime = this.startAt.minusMinutes(alarmMinutes);
+            this.isAlarmSent = false; // 설정이 바뀌었으니 다시 발송 대기 상태로 변경
+        } else {
+            // 알림 끄기
+            this.alarmTime = null;
+            this.isAlarmSent = false;
+        }
+    }
     // 반복 규칙 정의
     public enum RepeatType {
         NONE, DAILY, WEEKLY, MONTHLY

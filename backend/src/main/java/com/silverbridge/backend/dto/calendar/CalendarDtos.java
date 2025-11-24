@@ -41,9 +41,12 @@ public class CalendarDtos {
         // 중요도
         @JsonProperty("priority")
         private CalendarEvent.Priority priority;
-        // 알림 시간
+        // 알림 시간(없으면 null)
         @JsonProperty("alarm_time")
         private OffsetDateTime alarmTime;
+        // 일정 시간 기준 알림(분)
+        @JsonProperty("alarm_minutes")
+        private Integer alarmMinutes;
     }
 
     // 일정 수정을 위한 요청 DTO
@@ -80,6 +83,10 @@ public class CalendarDtos {
         // 알림 시간
         @JsonProperty("alarm_time")
         private OffsetDateTime alarmTime;
+        // 알림 설정(분)
+        @JsonProperty("alarm_minutes")
+        private Integer alarmMinutes;
+
     }
 
     // 응답 DTO
@@ -144,6 +151,9 @@ public class CalendarDtos {
         // 알림 시간
         @JsonProperty("alarm_time")
         private OffsetDateTime alarmTime;
+        // 설정된 알림(분)
+        @JsonProperty("alarm_minutes")
+        private Integer alarmMinutes;
     }
 
     // 상세 일정 목록 조회 응답 DTO

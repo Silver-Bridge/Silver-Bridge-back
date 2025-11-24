@@ -22,6 +22,10 @@ public class ChatSession {
     // 챗봇 응답에 사용할 지역 방언 코드 ("gs", "jl", "std")
     private String regionCode;
 
+    // 챗봇 제목
+    @Column(length = 50) // DB 컬럼 크기 제한 (필요에 따라 조절)
+    private String title;
+
     // 세션 생성 시간
     private LocalDateTime createdAt;
     // 세션 마지막 업데이트 시간
@@ -39,5 +43,10 @@ public class ChatSession {
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    //명시적인 제목 변경 매서드
+    public void updateTitle(String title) {
+        this.title = title;
     }
 }
