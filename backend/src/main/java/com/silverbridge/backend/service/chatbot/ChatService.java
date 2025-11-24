@@ -56,6 +56,10 @@ public class ChatService {
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
 
         String reply = llmClient.chat(prompt, seniorFriendly);
+
+        // 제목이 없으면 요약생성
+        generateTitleIfNeeded(session, originalText, reply);
+
         // 챗봇 응답 저장 (감정 null)
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
 
@@ -88,6 +92,9 @@ public class ChatService {
         List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
 
         String reply = llmClient.chat(prompt, seniorFriendly);
+
+        // 제목이 없으면 요약하여 제목 생성
+        generateTitleIfNeeded(session, asrText, reply);
 
         // 챗봇 응답 저장 (감정 null)
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
@@ -177,4 +184,33 @@ public class ChatService {
                 ))
                 .collect(Collectors.toList());
     }
+
+    // 제목 생성 헬퍼 메서드
+    private void generateTitleIfNeeded(ChatSession session, String userMsg, String botResponse) {
+        // 이미 제목이 있으면 생성하지 않음
+        if (session.getTitle() != null) return;
+
+        try {
+            // 1. 프롬프트 빌더를 통해 요약 요청 메시지 생성
+            List<MessageDto> titlePrompt = promptBuilder.buildTitlePrompt(userMsg, botResponse);
+
+            // 2. LLM 호출 (seniorFriendly=false: 요약은 기계적인 작업이므로 일반 모드로 호출)
+            String generatedTitle = llmClient.chat(titlePrompt, false);
+
+            // 3. 제목 길이 등 후처리 (혹시 모를 따옴표 제거 등)
+            generatedTitle = generatedTitle.replace("\"", "").replace("'", "").trim();
+            if (generatedTitle.length() > 50) {
+                generatedTitle = generatedTitle.substring(0, 50);
+            }
+
+            // 4. DB 업데이트
+            session.updateTitle(generatedTitle);
+            sessionRepo.save(session); // 변경 사항 즉시 저장
+
+        } catch (Exception e) {
+            // 제목 생성 실패는 챗봇의 주 기능(대화)을 막으면 안 되므로 로그만 남기고 통과
+            System.err.println("채팅방 제목 생성 실패: " + e.getMessage());
+        }
+    }
+
 }

@@ -38,4 +38,18 @@ public class PromptBuilder {
 
         return msgs;
     }
+    public List<MessageDto> buildTitlePrompt(String userMsg, String botResponse) {
+        List<MessageDto> msgs = new ArrayList<>();
+
+        String systemInstruction = "대화 내용을 요약하여 15자 이내의 간결한 제목을 짓는 전문가입니다. " +
+                "따옴표나 문장 부호 없이 명사형으로 끝내고, 제목 텍스트만 출력하세요.";
+        msgs.add(new MessageDto("system", systemInstruction));
+
+        String content = "다음 대화를 보고 제목을 지어줘:\n" +
+                "사용자: " + userMsg + "\n" +
+                "AI: " + botResponse;
+        msgs.add(new MessageDto("user", content));
+
+        return msgs;
+    }
 }
