@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -67,8 +69,8 @@ public class CalendarServiceImpl implements CalendarService {
                 .user(user)
                 .title(req.getTitle())
                 .description(req.getDescription())
-                .startAt(req.getStartAt().toLocalDateTime())
-                .endAt(req.getEndAt().toLocalDateTime())
+                .startAt(req.getStartAt())
+                .endAt(req.getEndAt())
                 .allDay(req.getAllDay() != null ? req.getAllDay() : false)
                 .location(req.getLocation())
                 .repeatType(req.getRepeatType() != null ? req.getRepeatType() : CalendarEvent.RepeatType.NONE)
@@ -97,8 +99,8 @@ public class CalendarServiceImpl implements CalendarService {
         // 정보 업데이트
         e.setTitle(req.getTitle());
         e.setDescription(req.getDescription());
-        e.setStartAt(req.getStartAt().toLocalDateTime());
-        e.setEndAt(req.getEndAt().toLocalDateTime());
+        e.setStartAt(req.getStartAt());
+        e.setEndAt(req.getEndAt());
         e.setAllDay(req.getAllDay());
         e.setLocation(req.getLocation());
         e.setRepeatType(req.getRepeatType());
@@ -132,8 +134,8 @@ public class CalendarServiceImpl implements CalendarService {
                 .title(e.getTitle())
                 .description(e.getDescription())
                 // 타임존 +09:00 (KST) 적용
-                .startAt(e.getStartAt().atOffset(java.time.ZoneOffset.ofHours(9)))
-                .endAt(e.getEndAt().atOffset(java.time.ZoneOffset.ofHours(9)))
+                .startAt(e.getStartAt())
+                .endAt(e.getEndAt())
                 .allDay(e.getAllDay())
                 .location(e.getLocation())
                 .repeatType(e.getRepeatType())
@@ -142,8 +144,35 @@ public class CalendarServiceImpl implements CalendarService {
                 // [추가] 설정된 알림 분 정보도 응답에 포함
                 .alarmMinutes(e.getAlarmMinutes())
                 // 계산된 알림 시간이 있다면 타임존 적용해서 반환
-                .alarmTime(e.getAlarmTime() != null ?
-                        e.getAlarmTime().atOffset(java.time.ZoneOffset.ofHours(9)) : null)
+                .alarmTime(e.getAlarmTime())
                 .build();
+    }
+
+    // [▼ 추가] 프론트엔드가 1분마다 호출할 메서드
+    @Override
+    @Transactional
+    public List<ScheduleItem> checkAlarm(Long userId) {
+        // 1. 유저 정보 조회
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        // [핵심] 전역 알림(alarmActive)이 꺼져있으면(false) -> 바로 빈 리스트 반환 (조회 안 함)
+        if (Boolean.FALSE.equals(user.getAlarmActive())) {
+            return java.util.Collections.emptyList();
+        }
+
+        // 2. 알림이 켜져 있다면 -> 시간 된 일정 조회
+        LocalDateTime now = LocalDateTime.now();
+        List<CalendarEvent> events = eventRepo.findByUserIdAndAlarmTimeBeforeAndIsAlarmSentFalse(userId, now);
+
+        // 3. 조회된 알람들은 "보냄(True)" 처리 (그래야 1분 뒤에 또 안 뜸)
+        for (CalendarEvent event : events) {
+            event.markAlarmAsSent();
+        }
+
+        // 4. 결과 반환
+        return events.stream()
+                .map(this::toScheduleItem)
+                .collect(Collectors.toList());
     }
 }

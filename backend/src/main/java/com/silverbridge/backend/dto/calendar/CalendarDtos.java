@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.silverbridge.backend.domain.calendar.CalendarEvent;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,11 +27,9 @@ public class CalendarDtos {
         private String description;
         // 시작 시간 (타임존 포함)
         @JsonProperty("start_at")
-        private OffsetDateTime startAt;
-        // 종료 시간 (타임존 포함)
+        private LocalDateTime startAt;        // 종료 시간 (타임존 포함)
         @JsonProperty("end_at")
-        private OffsetDateTime endAt;
-        // 하루 종일 여부
+        private LocalDateTime endAt;        // 하루 종일 여부
         @JsonProperty("all_day")
         private Boolean allDay;
         // 장소
@@ -65,11 +64,9 @@ public class CalendarDtos {
         private String description;
         // 시작 시간 (타임존 포함)
         @JsonProperty("start_at")
-        private OffsetDateTime startAt;
-        // 종료 시간 (타임존 포함)
+        private LocalDateTime startAt;        // 종료 시간 (타임존 포함)
         @JsonProperty("end_at")
-        private OffsetDateTime endAt;
-        // 하루 종일 여부
+        private LocalDateTime endAt;        // 하루 종일 여부
         @JsonProperty("all_day")
         private Boolean allDay;
         // 장소
@@ -133,11 +130,9 @@ public class CalendarDtos {
         private String description;
         // 시작 시간 (타임존 포함)
         @JsonProperty("start_at")
-        private OffsetDateTime startAt;
-        // 종료 시간 (타임존 포함)
+        private LocalDateTime startAt;        // 종료 시간 (타임존 포함)
         @JsonProperty("end_at")
-        private OffsetDateTime endAt;
-        // 하루 종일 여부
+        private LocalDateTime endAt;        // 하루 종일 여부
         @JsonProperty("all_day")
         private Boolean allDay;
         // 장소
@@ -150,8 +145,7 @@ public class CalendarDtos {
         private CalendarEvent.Priority priority;
         // 알림 시간
         @JsonProperty("alarm_time")
-        private OffsetDateTime alarmTime;
-        // 설정된 알림(분)
+        private LocalDateTime alarmTime;        // 설정된 알림(분)
         @JsonProperty("alarm_minutes")
         private Integer alarmMinutes;
     }

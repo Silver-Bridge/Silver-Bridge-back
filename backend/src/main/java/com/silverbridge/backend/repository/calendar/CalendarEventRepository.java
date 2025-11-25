@@ -12,4 +12,6 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findByUserIdAndStartAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
     // 스케줄러용 검색 메서드
     List<CalendarEvent> findAllByAlarmTimeBeforeAndIsAlarmSentFalse(LocalDateTime now);
+    // [▼ 추가] 특정 유저의 "시간 된" + "안 보낸" 알람 조회
+    List<CalendarEvent> findByUserIdAndAlarmTimeBeforeAndIsAlarmSentFalse(Long userId, LocalDateTime now);
 }

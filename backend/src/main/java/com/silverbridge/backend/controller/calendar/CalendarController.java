@@ -96,4 +96,41 @@ public class CalendarController {
 		calendarService.deleteSchedule(elderId, scheduleId);
 		return ResponseEntity.ok(SimpleMessageResponse.builder().code(200).message("일정 삭제 성공").build());
 	}
+
+    // [▼ 추가] 1분마다 호출될 알람 체크 API
+    @GetMapping("/alarm/check")
+    public ResponseEntity<?> checkAlarm(Authentication authentication) {
+        System.out.println("👉 1. 알람 체크 API 호출됨");
+
+        if (authentication == null) {
+            System.out.println("❌ 2. 인증 객체가 NULL입니다. (토큰 없음)");
+            return ResponseEntity.status(401).build();
+        }
+
+        String phone = authentication.getName();
+        System.out.println("👉 3. 토큰 사용자 전화번호: " + phone);
+
+        try {
+            User user = userService.findByPhoneNumber(phone);
+            if (user == null) {
+                System.out.println("❌ 4. DB에서 유저를 못 찾음: " + phone);
+                return ResponseEntity.badRequest().body("User not found");
+            }
+
+            System.out.println("👉 5. 유저 ID: " + user.getId() + " / 알림설정: " + user.getAlarmActive());
+
+            // 서비스 호출
+            List<ScheduleItem> alarms = calendarService.checkAlarm(user.getId());
+            System.out.println("✅ 6. 알람 조회 성공. 개수: " + alarms.size());
+
+            return ResponseEntity.ok(ScheduleListResponse.builder()
+                    .body(alarms)
+                    .build());
+
+        } catch (Exception e) {
+            System.out.println("❌ 7. 에러 발생 원인: " + e.getMessage());
+            e.printStackTrace(); // 콘솔에 빨간 에러 줄을 띄워줍니다.
+            return ResponseEntity.internalServerError().body(e.getMessage());
+        }
+    }
 }
