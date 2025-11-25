@@ -1,12 +1,17 @@
 package com.silverbridge.backend.controller.mypage;
 
+import com.silverbridge.backend.domain.User;
 import com.silverbridge.backend.dto.mypage.MemberMyPageDto;
+import com.silverbridge.backend.repository.UserRepository;
+import com.silverbridge.backend.service.UserService;
 import com.silverbridge.backend.service.mypage.MemberMyPageService;
-import com.silverbridge.backend.service.mypage.MyPageService; // [추가] 알림 로직이 있는 서비스 임포트
+import com.silverbridge.backend.service.mypage.MyPageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -14,9 +19,11 @@ import org.springframework.web.bind.annotation.*;
 public class MemberMyPageController {
 
     private final MemberMyPageService memberMypageService;
-    private final MyPageService myPageService; // [추가] 주입 받기
+    private final MyPageService myPageService;
+	private final UserRepository userRepository;
+	private final UserService userService;
 
-    // 텍스트 사이즈 변경
+	// 텍스트 사이즈 변경
     @PatchMapping("/text-size")
     public ResponseEntity<?> updateTextSize(
             Authentication authentication,
@@ -36,7 +43,7 @@ public class MemberMyPageController {
         return ResponseEntity.ok("지역 정보가 변경되었습니다.");
     }
 
-    // [▼ 추가] 알림 설정(ON/OFF) 변경
+    // 알림 설정(ON/OFF) 변경
     @PatchMapping("/alarm")
     public ResponseEntity<?> updateAlarm(
             Authentication authentication,
@@ -48,4 +55,25 @@ public class MemberMyPageController {
         String message = req.getAlarmActive() ? "알림이 켜졌습니다." : "알림이 꺼졌습니다.";
         return ResponseEntity.ok(message);
     }
+
+	// 노인이 본인과 연결된 보호자 정보 조회
+	@GetMapping("/guardian-info")
+	public ResponseEntity<?> getConnectedGuardianInfo(Authentication authentication) {
+
+		String elderPhone = authentication.getName();
+
+		User elder = userService.findByPhoneNumber(elderPhone);
+
+		User guardian = userRepository.findByConnectedElderId(elder.getId())
+				.orElseThrow(() -> new IllegalArgumentException("연결된 보호자를 찾을 수 없습니다."));
+
+		return ResponseEntity.ok(
+				Map.of(
+						"guardianId", guardian.getId(),
+						"guardianName", guardian.getName(),
+						"guardianPhone", guardian.getPhoneNumber()
+				)
+		);
+	}
+
 }

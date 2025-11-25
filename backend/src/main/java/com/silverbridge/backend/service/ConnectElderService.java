@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ConnectElderService {
@@ -32,6 +34,11 @@ public class ConnectElderService {
 
 		if (guardian.getConnectedElderId() != null) {
 			throw new CustomException("이미 노인과 연결된 보호자입니다.");
+		}
+
+		List<User> alreadyGuardians = userRepository.findAllByConnectedElderId(elder.getId());
+		if (!alreadyGuardians.isEmpty()) {
+			throw new IllegalStateException("해당 노인은 이미 다른 보호자와 연결되어 있습니다.");
 		}
 
 		guardian.connectElder(elder.getId());
