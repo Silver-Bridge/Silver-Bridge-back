@@ -70,8 +70,8 @@ public class CalendarEvent {
     @Column(name = "alarm_minutes")
     private Integer alarmMinutes;
 
-    // 알림 발송 여부 체크(중복 발송 방지)
-    @Column(name = "is_alarm_sent")
+    // [핵심] 알림 발송 여부 체크 (true면 이미 보낸 것)
+    @Column(name = "is_alarm_sent", nullable = false)
     @Builder.Default
     private Boolean isAlarmSent = false;
 
@@ -96,20 +96,27 @@ public class CalendarEvent {
         updatedAt = LocalDateTime.now();
     }
 
-    // 시작시간, 설정(분) 기반으로 alarmTime 자동계산
+    // [핵심 1] 알림 발송 완료 처리 메서드 (서비스에서 호출함)
+    public void markAlarmAsSent() {
+        this.isAlarmSent = true;
+    }
+
+    // [핵심 2] 시작시간, 설정(분) 기반으로 alarmTime 자동계산
     public void updateAlarm(Integer alarmMinutes) {
         this.alarmMinutes = alarmMinutes;
 
         if (alarmMinutes != null && alarmMinutes >= 0 && this.startAt != null) {
             // 예: 10분 전이면, 시작 시간에서 10분을 뺌
             this.alarmTime = this.startAt.minusMinutes(alarmMinutes);
-            this.isAlarmSent = false; // 설정이 바뀌었으니 다시 발송 대기 상태로 변경
+            // 시간이 수정되었으니, 다시 알림이 울려야 하므로 false로 초기화
+            this.isAlarmSent = false;
         } else {
-            // 알림 끄기
+            // 알림 끄기 (설정 없거나 음수일 때)
             this.alarmTime = null;
             this.isAlarmSent = false;
         }
     }
+
     // 반복 규칙 정의
     public enum RepeatType {
         NONE, DAILY, WEEKLY, MONTHLY
