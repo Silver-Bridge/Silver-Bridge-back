@@ -120,6 +120,25 @@ public class CalendarServiceImpl implements CalendarService {
         eventRepo.delete(e);
     }
 
+    // 챗봇으로 일정 삭제
+    @Override
+    @Transactional
+    public String deleteScheduleByTitle(Long userId, String title) {
+        // 1. 현재 시간 이후의 일정 중, 제목이 포함된 가장 빠른 일정을 찾음
+        CalendarEvent event = eventRepo.findFirstByUserIdAndTitleContainingAndStartAtAfterOrderByStartAtAsc(
+                userId, title, LocalDateTime.now()
+        ).orElse(null);
+
+        // 2. 없으면 실패 메시지
+        if (event == null) {
+            return "삭제할 일정을 못 찾았습니더. (" + title + ")";
+        }
+
+        // 3. 찾았으면 삭제
+        eventRepo.delete(event);
+        return "일정을 삭제했습니더. (" + event.getTitle() + ", " + event.getStartAt().toLocalDate() + ")";
+    }
+
     // 6. [신규 기능] 일정 완료 토글
     @Override
     @Transactional

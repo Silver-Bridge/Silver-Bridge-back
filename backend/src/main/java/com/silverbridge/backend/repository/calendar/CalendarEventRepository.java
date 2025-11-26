@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 // CalendarEvent 엔티티에 대한 데이터베이스 작업을 위한 레포지토리
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Long> {
@@ -14,4 +15,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Lo
     List<CalendarEvent> findAllByAlarmTimeBeforeAndIsAlarmSentFalse(LocalDateTime now);
     // [▼ 추가] 특정 유저의 "시간 된" + "안 보낸" 알람 조회
     List<CalendarEvent> findByUserIdAndAlarmTimeBeforeAndIsAlarmSentFalse(Long userId, LocalDateTime now);
+    Optional<CalendarEvent> findFirstByUserIdAndTitleContainingAndStartAtAfterOrderByStartAtAsc(
+            Long userId, String title, LocalDateTime now
+    );
+
 }
