@@ -19,12 +19,19 @@ public class ChatVoiceResponse {
     // 현재 대화 세션 ID
     private Long sessionId;
 
-    // [추가됨] 채팅방 제목 (이 필드가 없어서 에러가 났었습니다)
+    // 채팅 제목
     private String title;
 
-    // 현재까지의 대화 기록
+    // [수정] 현재까지의 대화 기록
     private List<MessageDto> history;
 
-    // 챗봇의 "음성" 응답 URL
+    // [수정] 챗봇의 "음성" 응답 URL
     private String replyAudioUrl;
-}
+
+    //    // 사용자 음성을 텍스트로 변환한 결과 (ASR)
+    //    private String asrText;
+    //    // 챗봇의 텍스트 답변
+    //    private String replyText;
+    //
+    //    // 감정 분석 결과 필드 (원본 코드에 이미 반영됨)
+    //    private String emotion;

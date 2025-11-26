@@ -49,6 +49,7 @@ public class User {
 	private Long connectedElderId;
 
 	@Column(nullable = false)
+    @Builder.Default
 	private Boolean alarmActive = true;
 
 

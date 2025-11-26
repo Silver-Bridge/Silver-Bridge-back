@@ -19,6 +19,9 @@ public class ChatTextResponse {
 
     // 현재 대화 세션 ID
     private Long sessionId;
+    
+    // 채팅 제목
+    private String title;
 
     // 현재까지의 대화 기록
     private List<MessageDto> history;

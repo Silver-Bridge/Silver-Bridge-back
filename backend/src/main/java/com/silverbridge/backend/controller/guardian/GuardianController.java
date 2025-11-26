@@ -40,4 +40,30 @@ public class GuardianController {
 				Map.of("message", "노인과 성공적으로 연결되었습니다.")
 		);
 	}
+
+	@GetMapping("/elder-info")
+	public ResponseEntity<?> getConnectedElderInfo(Authentication authentication) {
+
+		String guardianPhone = authentication.getName();
+
+		User guardian = userRepository.findByPhoneNumber(guardianPhone)
+				.orElseThrow(() -> new IllegalArgumentException("보호자 계정을 찾을 수 없습니다."));
+
+		if (guardian.getConnectedElderId() == null) {
+			return ResponseEntity.badRequest()
+					.body(Map.of("message", "연결된 노인이 없습니다."));
+		}
+
+		User elder = userRepository.findById(guardian.getConnectedElderId())
+				.orElseThrow(() -> new IllegalArgumentException("연결된 노인 정보를 찾을 수 없습니다."));
+
+		return ResponseEntity.ok(
+				Map.of(
+						"elderId", elder.getId(),
+						"elderName", elder.getName(),
+						"elderPhone", elder.getPhoneNumber()
+				)
+		);
+	}
+
 }

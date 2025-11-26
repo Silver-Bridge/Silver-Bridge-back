@@ -22,4 +22,10 @@ public interface CalendarService {
 
     // 기존 일정 삭제
     void deleteSchedule(Long elderId, Long scheduleId);
+
+    // 일정 완료 상태 체크
+    void toggleScheduleCompletion(Long elderId, Long scheduleId);
+    
+    // [▼ 추가] 알람 체크 메서드 정의
+    List<ScheduleItem> checkAlarm(Long userId);
 }

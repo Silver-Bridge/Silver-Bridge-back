@@ -12,7 +12,7 @@ spring:
     name: silverbridge-backend
 
   datasource:
-    url: jdbc:mariadb://localhost:3306/silverbridge_db
+    url: jdbc:mariadb://localhost:3306/silverbridge_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: root
     password: ${DB_ROOT_PASSWORD}
     driver-class-name: org.mariadb.jdbc.Driver
@@ -20,6 +20,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update           # 개발용: update, 운영은 validate 권장
+    show-sql: true
     properties:
       hibernate:
         format_sql: true
@@ -29,7 +30,7 @@ spring:
       api-key: ${OPENAI_API_KEY}    # .env에서 읽기
       chat:
         options:
-          model: gpt-3.5-turbo     # gpt 모델
+          model: gpt-4o          # gpt 모델
           max-tokens: 1000
           temperature: 0.7
 

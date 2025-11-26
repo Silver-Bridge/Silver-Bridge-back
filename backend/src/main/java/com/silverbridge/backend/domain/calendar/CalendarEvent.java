@@ -66,6 +66,25 @@ public class CalendarEvent {
     @Column(name = "alarm_time")
     private LocalDateTime alarmTime;
 
+    // 사용자가 설정한 알림(분)
+    @Column(name = "alarm_minutes")
+    private Integer alarmMinutes;
+
+    // [핵심] 알림 발송 여부 체크 (true면 이미 보낸 것)
+    @Column(name = "is_alarm_sent", nullable = false)
+    @Builder.Default
+    private Boolean isAlarmSent = false;
+
+    // 일정 완료 여부
+    @Column(name = "is_completed", nullable = false)
+    @Builder.Default
+    private Boolean isCompleted = false;
+
+    // 완료 상태 토글 (true <-> false)
+    public void toggleCompletion() {
+        this.isCompleted = !this.isCompleted;
+    }
+
     // 일정 생성 시간
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -85,6 +104,27 @@ public class CalendarEvent {
     @PreUpdate
     public void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    // [핵심 1] 알림 발송 완료 처리 메서드 (서비스에서 호출함)
+    public void markAlarmAsSent() {
+        this.isAlarmSent = true;
+    }
+
+    // [핵심 2] 시작시간, 설정(분) 기반으로 alarmTime 자동계산
+    public void updateAlarm(Integer alarmMinutes) {
+        this.alarmMinutes = alarmMinutes;
+
+        if (alarmMinutes != null && alarmMinutes >= 0 && this.startAt != null) {
+            // 예: 10분 전이면, 시작 시간에서 10분을 뺌
+            this.alarmTime = this.startAt.minusMinutes(alarmMinutes);
+            // 시간이 수정되었으니, 다시 알림이 울려야 하므로 false로 초기화
+            this.isAlarmSent = false;
+        } else {
+            // 알림 끄기 (설정 없거나 음수일 때)
+            this.alarmTime = null;
+            this.isAlarmSent = false;
+        }
     }
 
     // 반복 규칙 정의
