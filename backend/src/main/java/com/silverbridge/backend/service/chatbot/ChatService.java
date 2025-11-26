@@ -83,6 +83,8 @@ public class ChatService {
 
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
+                .userId(userId)
+                .title(session.getTitle())
                 .history(updated)
                 .replyAudioUrl(replyAudioUrl)
                 .build();

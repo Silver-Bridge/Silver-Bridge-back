@@ -35,3 +35,4 @@ public class ChatVoiceResponse {
     //
     //    // 감정 분석 결과 필드 (원본 코드에 이미 반영됨)
     //    private String emotion;
+}
