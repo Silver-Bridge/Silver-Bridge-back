@@ -8,151 +8,154 @@ import com.silverbridge.backend.domain.chatbot.ChatMessage;
 import com.silverbridge.backend.domain.chatbot.ChatSession;
 import com.silverbridge.backend.repository.chatbot.ChatMessageRepository;
 import com.silverbridge.backend.repository.chatbot.ChatSessionRepository;
+import com.silverbridge.backend.dto.chatbot.SearchResDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.AccessControlException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-// 챗봇 기능의 핵심 비즈니스 로직을 처리하는 서비스
 @Service
 @RequiredArgsConstructor
 public class ChatService {
 
-    // 의존성 주입
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
     private final AsrClient asrClient;
     private final LlmClient llmClient;
     private final PromptBuilder promptBuilder;
     private final EmotionClient emotionClient;
-    private final TtsClient ttsClient; // TtsClient 주입
+    private final TtsClient ttsClient;
+    private final NaverSearchClient naverSearchClient;
 
-    // 어르신 친화적 답변 모드 활성화 여부
     @Value("${chatbot.senior-friendly:true}")
     private boolean seniorFriendly;
 
-    // LLM에 전달할 대화 기록 최대 개수
     @Value("${chatbot.history-limit:20}")
     private int historyLimit;
 
-    // 텍스트 입력을 받아 챗봇 응답을 생성하는 전체 과정 처리
+    // --- 1. 텍스트 입력 처리 ---
     @Transactional
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
 
         String originalText = req.getText();
-        String emotion = emotionClient.analyze(originalText); // (1) 감정 분석
-
-        // [수정] 감정 정보 포함하여 DB 저장
+        String emotion = emotionClient.analyze(originalText);
         saveMessage(session, ChatMessage.Role.USER, originalText, emotion);
 
+        // [수정됨] PromptBuilder에게 검색 필요 여부 판단 위임
+        List<SearchResDto> searchResults = null;
+        // shouldSearch() 메서드 대신 promptBuilder.isSearchNeeded() 사용
+        if (promptBuilder.isSearchNeeded(originalText)) {
+            System.out.println("🔎 [TEXT] 검색 키워드 감지 (by PromptBuilder): " + originalText);
+            searchResults = naverSearchClient.search(originalText);
+        }
+
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
-        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
+
+        // PromptBuilder 호출 (파라미터 6개)
+        List<MessageDto> prompt = promptBuilder.build(
+                history,
+                contextualUserMsg,
+                emotion,
+                session.getRegionCode(),
+                seniorFriendly,
+                searchResults
+        );
 
         String reply = llmClient.chat(prompt, seniorFriendly);
-
-        // 제목이 없으면 요약생성
         generateTitleIfNeeded(session, originalText, reply);
-
-        // 챗봇 응답 저장 (감정 null)
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
 
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
-
-        // [수정] DB에 저장된 감정까지 포함하여 최신 기록 다시 조회
         List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
 
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
                 .history(updated)
-                .replyAudioUrl(replyAudioUrl) // 음성 URL 포함
+                .replyAudioUrl(replyAudioUrl)
                 .build();
     }
 
-    // 음성 입력을 받아 텍스트로 변환 후 챗봇 응답 생성
+    // --- 2. 음성 입력 처리 ---
     @Transactional
     public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) {
         ChatSession session = upsertSession(userId, sessionId, regionCode);
 
+        // STT 변환
         String asrText = asrClient.transcribe(session.getRegionCode(), file);
-        String emotion = emotionClient.analyze(asrText); // (1) 감정 분석
-
-        // [수정] 변환된 사용자 메시지 및 감정 정보 DB 저장
+        String emotion = emotionClient.analyze(asrText);
         saveMessage(session, ChatMessage.Role.USER, asrText, emotion);
 
-        String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
-        List<MessageDto> prompt = promptBuilder.build(history, contextualUserMsg, seniorFriendly);
+
+        // [수정됨] PromptBuilder에게 검색 필요 여부 판단 위임
+        List<SearchResDto> searchResults = null;
+        if (promptBuilder.isSearchNeeded(asrText)) {
+            System.out.println("🔎 [VOICE] 검색 키워드 감지 (by PromptBuilder): " + asrText);
+            searchResults = naverSearchClient.search(asrText);
+        }
+
+        String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
+
+        // PromptBuilder 호출 (파라미터 6개)
+        List<MessageDto> prompt = promptBuilder.build(
+                history,
+                contextualUserMsg,
+                emotion,
+                session.getRegionCode(),
+                seniorFriendly,
+                searchResults
+        );
 
         String reply = llmClient.chat(prompt, seniorFriendly);
-
-        // 제목이 없으면 요약하여 제목 생성
         generateTitleIfNeeded(session, asrText, reply);
-
-        // 챗봇 응답 저장 (감정 null)
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
 
-        // [수정] LLM이 생성한 텍스트(reply)를 TTS Client로 전달
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
-
-        // [수정] DB에 저장된 감정까지 포함하여 최신 기록 다시 조회
         List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
 
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
-                .history(updatedHistory) // (DTO에 이 필드가 있어야 함)
-                .replyAudioUrl(replyAudioUrl) // 음성 URL 포함
+                .userId(userId)
+                .title(session.getTitle())
+                .history(updatedHistory)
+                .replyAudioUrl(replyAudioUrl)
                 .build();
     }
 
-    // 특정 세션의 대화 기록 조회
+    // --- 3. 유틸리티 및 CRUD 메서드 ---
+
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
-        ChatSession s = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
-        if (!Objects.equals(s.getUserId(), userId)) {
-            throw new AccessControlException("권한 없음");
-        }
+        ChatSession s = sessionRepo.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("세션 없음"));
+        if (!Objects.equals(s.getUserId(), userId)) throw new SecurityException("권한 없음");
         return latestHistory(sessionId, Math.max(historyLimit, 50));
     }
 
-    // 사용자 본인의 전체 세션 목록 조회
     @Transactional(readOnly = true)
     public List<ChatSession> getSessions(Long userId) {
         return sessionRepo.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    // 사용자 세션 삭제
     @Transactional
     public void deleteSession(Long userId, Long sessionId) {
-        ChatSession session = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
-        if (!Objects.equals(session.getUserId(), userId)) {
-            throw new AccessControlException("본인 세션만 삭제할 수 있습니다.");
-        }
+        ChatSession session = sessionRepo.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("세션 없음"));
+        if (!Objects.equals(session.getUserId(), userId)) throw new SecurityException("본인 세션만 삭제할 수 있습니다.");
         messageRepo.deleteAll(messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId));
         sessionRepo.delete(session);
     }
 
-    // 기존 세션 조회 또는 신규 세션 생성
     private ChatSession upsertSession(Long userId, Long sessionId, String regionCode) {
         ChatSession session;
         if (sessionId != null) {
-            session = sessionRepo.findById(sessionId)
-                    .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
-            if (!Objects.equals(session.getUserId(), userId)) {
-                throw new AccessControlException("권한 없음");
-            }
-            if (regionCode != null && !regionCode.isBlank()) {
-                session.setRegionCode(regionCode);
-            }
+            session = sessionRepo.findById(sessionId).orElseThrow(() -> new IllegalArgumentException("세션 없음"));
+            if (!Objects.equals(session.getUserId(), userId)) throw new SecurityException("권한 없음");
+            if (regionCode != null && !regionCode.isBlank()) session.setRegionCode(regionCode);
         } else {
             session = new ChatSession();
             session.setUserId(userId);
@@ -161,56 +164,34 @@ public class ChatService {
         return sessionRepo.save(session);
     }
 
-    // [수정] emotion 파라미터 추가하여 DB 저장
     private void saveMessage(ChatSession s, ChatMessage.Role role, String content, String emotion) {
         ChatMessage m = new ChatMessage();
         m.setSession(s);
         m.setRole(role);
         m.setContent(content);
-        m.setEmotion(emotion); // 엔티티에 감정 저장
+        m.setEmotion(emotion);
         messageRepo.save(m);
     }
 
-    // 세션의 최근 대화 기록을 DTO 리스트로 변환하여 조회
     private List<MessageDto> latestHistory(Long sessionId, int limit) {
         return messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .sorted(Comparator.comparing(ChatMessage::getCreatedAt))
                 .limit(limit)
-                // [수정] DB에 저장된 감정(m.getEmotion())을 포함하여 DTO 생성
-                .map(m -> new MessageDto(
-                        m.getRole().name().toLowerCase(),
-                        m.getContent(),
-                        m.getEmotion()
-                ))
+                .map(m -> new MessageDto(m.getRole().name().toLowerCase(), m.getContent(), m.getEmotion()))
                 .collect(Collectors.toList());
     }
 
-    // 제목 생성 헬퍼 메서드
     private void generateTitleIfNeeded(ChatSession session, String userMsg, String botResponse) {
-        // 이미 제목이 있으면 생성하지 않음
         if (session.getTitle() != null) return;
-
         try {
-            // 1. 프롬프트 빌더를 통해 요약 요청 메시지 생성
             List<MessageDto> titlePrompt = promptBuilder.buildTitlePrompt(userMsg, botResponse);
-
-            // 2. LLM 호출 (seniorFriendly=false: 요약은 기계적인 작업이므로 일반 모드로 호출)
             String generatedTitle = llmClient.chat(titlePrompt, false);
-
-            // 3. 제목 길이 등 후처리 (혹시 모를 따옴표 제거 등)
             generatedTitle = generatedTitle.replace("\"", "").replace("'", "").trim();
-            if (generatedTitle.length() > 50) {
-                generatedTitle = generatedTitle.substring(0, 50);
-            }
-
-            // 4. DB 업데이트
+            if (generatedTitle.length() > 50) generatedTitle = generatedTitle.substring(0, 50);
             session.updateTitle(generatedTitle);
-            sessionRepo.save(session); // 변경 사항 즉시 저장
-
+            sessionRepo.save(session);
         } catch (Exception e) {
-            // 제목 생성 실패는 챗봇의 주 기능(대화)을 막으면 안 되므로 로그만 남기고 통과
-            System.err.println("채팅방 제목 생성 실패: " + e.getMessage());
+            System.err.println("제목 생성 실패: " + e.getMessage());
         }
     }
-
 }

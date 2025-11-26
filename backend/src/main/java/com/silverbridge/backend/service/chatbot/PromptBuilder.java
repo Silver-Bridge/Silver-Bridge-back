@@ -1,55 +1,132 @@
 package com.silverbridge.backend.service.chatbot;
 
 import com.silverbridge.backend.dto.chatbot.MessageDto;
+import com.silverbridge.backend.dto.chatbot.SearchResDto;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// LLM에 전달할 최종 프롬프트를 구성하는 빌더
 @Component
 public class PromptBuilder {
 
-    // 대화 기록, 사용자 메시지, 시스템 메시지를 조합하여 LLM용 프롬프트 생성
-    public List<MessageDto> build(List<MessageDto> history, String userMsg, boolean seniorFriendly) {
+    private static final String[] SEARCH_KEYWORDS = {
+            "복지", "혜택", "지원금", "정책", "센터",
+            "추천", "어디", "찾아줘", "알려줘", "병원", "약국",
+            "뉴스", "정보", "어떻게"
+    };
+
+    public boolean isSearchNeeded(String userMsg) {
+        if (userMsg == null || userMsg.isBlank()) return false;
+        for (String keyword : SEARCH_KEYWORDS) {
+            if (userMsg.contains(keyword)) return true;
+        }
+        return false;
+    }
+
+    public List<MessageDto> build(List<MessageDto> history, String userMsg, String emotionCode, String regionCode, boolean seniorFriendly, List<SearchResDto> searchResults) {
         List<MessageDto> msgs = new ArrayList<>();
+        StringBuilder systemPrompt = new StringBuilder();
 
-        // [수정] 노인 친화 모드 시스템 프롬프트 강화 (답변 길이/어휘 가이드 포함)
-        String system = seniorFriendly
-                ? "당신은 70대 어르신을 위한 전문적이고 다정다감한 인공지능 말벗입니다. " +
-                "사용자가 '감정: [XX]' 상태로 말한 내용을 분석하고 공감하여, " +
-                "최대한 쉬운 어휘와 짧고 친절한 문장으로 답변해야 합니다. " +
-                "답변은 50자 내외로 간결하게 작성합니다. 필요 없는 긴 설명은 생략합니다."
-                : "You are a helpful assistant.";
+        boolean hasSearchInfo = (searchResults != null && !searchResults.isEmpty());
 
-        // 1. 시스템 메시지 추가
-        msgs.add(new MessageDto("system", system));
+        if (seniorFriendly) {
+            // 1. 기본 역할 정의
+            systemPrompt.append("You are 'SilverBridge', a professional AI companion for seniors. ");
 
-        // 2. 기존 대화 기록 추가 (시스템 프롬프트는 emotion 필드 제외)
+            // 2. 지역별 페르소나 (말투/성격) 설정 - 가장 우선순위 높음
+            systemPrompt.append(getDialectInstruction(regionCode)).append("\n");
+
+            // 3. 검색 결과(RAG) 주입
+            if (hasSearchInfo) {
+                systemPrompt.append("\n### [Reference Information] ###\n");
+                systemPrompt.append("You MUST answer based on the search results below.\n");
+                systemPrompt.append("1. Extract specific program names, locations, or benefits.\n");
+                systemPrompt.append("2. Do NOT generalize. Mention specific names found in the results.\n");
+                systemPrompt.append("3. Explain 2-3 key items clearly.\n");
+                // [중요] 정보는 정확하게, 말투는 페르소나 유지
+                systemPrompt.append("4. IMPORTANT: Convert the explanation into the defined dialect/tone above, but keep the proper nouns (names) accurate.\n");
+
+                for (int i = 0; i < searchResults.size(); i++) {
+                    SearchResDto item = searchResults.get(i);
+                    systemPrompt.append(String.format("- %s : %s\n", item.getTitle(), item.getDescription()));
+                }
+                systemPrompt.append("### End of Reference ###\n");
+            }
+
+            // 4. 대화 가이드라인
+            systemPrompt.append("\n[Response Guidelines]\n");
+            systemPrompt.append("- Always respond in Korean.\n");
+
+            // 공감/반응 지시
+            systemPrompt.append("- Add a brief empathetic phrase (e.g., '그럴 수 있어요', '좋은 생각이에요') if appropriate.\n");
+
+            // 길이 조정
+            if (hasSearchInfo) {
+                systemPrompt.append("- Since you are explaining information, you can write up to 400 characters.\n");
+                systemPrompt.append("- Make sure the user clearly understands the specific benefits.\n");
+            } else {
+                systemPrompt.append("- Keep it short for casual talk (around 100~150 characters).\n");
+                systemPrompt.append("- Avoid long lectures.\n");
+            }
+
+            // 5. 감정 지침
+            systemPrompt.append("\n[User Emotion: ").append(getEmotionInstruction(emotionCode)).append("]\n");
+
+        } else {
+            systemPrompt.append("You are a helpful assistant.");
+        }
+
+        msgs.add(new MessageDto("system", systemPrompt.toString()));
+
         if (history != null && !history.isEmpty()) {
             msgs.addAll(history.stream()
                     .map(m -> new MessageDto(m.getRole(), m.getContent()))
                     .collect(Collectors.toList()));
         }
 
-        // 3. 현재 사용자 메시지 추가 (ChatService에서 감정 정보가 이미 content에 포함되어 있음)
         msgs.add(new MessageDto("user", userMsg));
 
         return msgs;
     }
+
+    // ... (buildTitlePrompt, getDialectInstruction, getEmotionInstruction 메서드는 기존과 동일하게 유지) ...
     public List<MessageDto> buildTitlePrompt(String userMsg, String botResponse) {
         List<MessageDto> msgs = new ArrayList<>();
-
-        String systemInstruction = "대화 내용을 요약하여 15자 이내의 간결한 제목을 짓는 전문가입니다. " +
-                "따옴표나 문장 부호 없이 명사형으로 끝내고, 제목 텍스트만 출력하세요.";
-        msgs.add(new MessageDto("system", systemInstruction));
-
-        String content = "다음 대화를 보고 제목을 지어줘:\n" +
-                "사용자: " + userMsg + "\n" +
-                "AI: " + botResponse;
-        msgs.add(new MessageDto("user", content));
-
+        msgs.add(new MessageDto("system", "Summarize into a concise Korean title (noun form, under 15 chars)."));
+        msgs.add(new MessageDto("user", "User: " + userMsg + "\nAI: " + botResponse));
         return msgs;
+    }
+
+    private String getDialectInstruction(String regionCode) {
+        if (regionCode == null) regionCode = "std";
+        // 이전에 드린 '개선된 사투리 프롬프트'를 그대로 쓰시면 됩니다.
+        return switch (regionCode.toLowerCase()) {
+            case "gs" ->
+                    "You are an elderly native speaker from Busan/Gyeongsang-do. " +
+                            "Speak in a polite, warm, and trustworthy tone. " +
+                            "Use endings like '~입니더', '~예', '~심더' (Jondaetmal with dialect). " +
+                            "Avoid using '~노' in declarative sentences; use it only for questions if necessary. " +
+                            "Example: '부산에는 노인 맞춤 돌봄 서비스가 있습니더.', '치과 주치의 혜택도 챙기 보이소.'";
+            case "gw" ->
+                    "You are an elderly native speaker from Gangneung (Gangwon-do). " +
+                            "Speak in a gentle and slow tone. " +
+                            "Use endings like '~이래요', '~이랬어요', '~잖소'.";
+            default ->
+                    "Use standard Korean (Seoul). Polite and respectful.";
+        };
+    }
+
+    private String getEmotionInstruction(String code) {
+        if (code == null) code = "6";
+        return switch (code) {
+            case "0" -> "User is Happy. React cheerfully.";
+            case "1" -> "User is Sad. Console warmly.";
+            case "2" -> "User is Angry. Calm them down.";
+            case "3" -> "User is Anxious. Give reassurance.";
+            case "6" -> "User is Neutral. Be informative and friendly.";
+            default -> "Respond kindly.";
+        };
     }
 }
