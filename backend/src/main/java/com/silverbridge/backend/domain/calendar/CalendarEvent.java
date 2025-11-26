@@ -75,6 +75,16 @@ public class CalendarEvent {
     @Builder.Default
     private Boolean isAlarmSent = false;
 
+    // 일정 완료 여부
+    @Column(name = "is_completed", nullable = false)
+    @Builder.Default
+    private Boolean isCompleted = false;
+
+    // 완료 상태 토글 (true <-> false)
+    public void toggleCompletion() {
+        this.isCompleted = !this.isCompleted;
+    }
+
     // 일정 생성 시간
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
