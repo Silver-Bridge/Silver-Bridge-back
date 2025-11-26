@@ -97,6 +97,24 @@ public class CalendarController {
 		return ResponseEntity.ok(SimpleMessageResponse.builder().code(200).message("일정 삭제 성공").build());
 	}
 
+    // 일정 완료 상태
+    @PatchMapping("/schedule/{scheduleId}/complete")
+    public ResponseEntity<?> toggleComplete(
+            @PathVariable Long scheduleId,
+            Authentication authentication
+    ) {
+        String phone = authentication.getName();
+        User user = userService.findByPhoneNumber(phone);
+        Long elderId = elderAccessService.getAccessibleElderId(user.getId());
+
+        calendarService.toggleScheduleCompletion(elderId, scheduleId);
+
+        return ResponseEntity.ok(SimpleMessageResponse.builder()
+                .code(200)
+                .message("일정 완료 상태가 변경되었습니다.")
+                .build());
+    }
+
     // [▼ 추가] 1분마다 호출될 알람 체크 API
     @GetMapping("/alarm/check")
     public ResponseEntity<?> checkAlarm(Authentication authentication) {
