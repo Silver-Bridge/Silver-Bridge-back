@@ -6,9 +6,15 @@ from datetime import datetime
 # 설정 및 템플릿
 # ==============================================================================
 
-# 분석에서 제외할 디렉토리 및 파일
-IGNORE_DIRS = {'.git', '.idea', '.gradle', 'build', 'gradle', 'out', '.github', 'wrapper'}
-IGNORE_FILES = {'.gitignore', 'generate_readme.py', 'README.md', 'gradlew', 'gradlew.bat'}
+# 분석 및 트리 출력에서 제외할 디렉토리
+IGNORE_DIRS = {
+    '.git', '.idea', '.gradle', 'build', 'gradle', 'out', 
+    '.github', 'wrapper', 'target', 'node_modules', '__pycache__'
+}
+IGNORE_FILES = {
+    '.gitignore', 'generate_readme.py', 'README.md', 
+    'gradlew', 'gradlew.bat', '.DS_Store'
+}
 
 README_TEMPLATE = """# Silver Bridge Backend
 > 지역별 노인 맞춤형 사투리 음성인식 서비스를 제공하는 AI 기반 복지 플랫폼 **Silver Bridge**의 백엔드 서버입니다.
@@ -33,7 +39,7 @@ Silver Bridge Backend는 고령층의 디지털 소외를 해소하기 위해
 - **Spring Security + JWT**
 - **JPA/Hibernate**
 - **MariaDB**
-- **AWS (EC2, Nginx)**
+- **AWS (EC2, S3, Route53, Nginx)**
 - **FastAPI (ASR/STT 서버)**
 
 ---
@@ -57,6 +63,7 @@ Silver Bridge Backend는 고령층의 디지털 소외를 해소하기 위해
 
 # 🛠 4. Build & Run
 ```bash
+cd backend
 ./gradlew clean build
 java -jar build/libs/silverbridge-backend.jar
 # Test
@@ -67,22 +74,54 @@ java -jar build/libs/silverbridge-backend.jar
 """
 
 # ==============================================================================
+# 유틸리티: 소스 루트 찾기 (여기가 핵심 수정됨)
+# ==============================================================================
+
+def find_java_source_root(start_path="."):
+    """
+    Java 소스 경로를 찾습니다. backend 폴더가 있는 경우를 우선 처리합니다.
+    """
+    print(f"🔍 [DEBUG] 자바 소스 루트 찾는 중... (시작: {os.path.abspath(start_path)})")
+    
+    # 1. 사용자 프로젝트 구조에 맞춘 최우선 경로 확인 (backend/src/main/java)
+    backend_path = os.path.join(start_path, "backend", "src", "main", "java")
+    if os.path.exists(backend_path):
+        print(f"✅ [DEBUG] 'backend' 폴더 내부 경로 발견: {backend_path}")
+        return backend_path
+
+    # 2. 표준 경로 확인 (src/main/java)
+    standard_path = os.path.join(start_path, "src", "main", "java")
+    if os.path.exists(standard_path):
+        print(f"✅ [DEBUG] 표준 루트 경로 발견: {standard_path}")
+        return standard_path
+    
+    # 3. 재귀 탐색 (혹시 다른 이름의 폴더에 있을 경우)
+    print("⚠️ [DEBUG] 주요 경로에 없음. 재귀 탐색 시작...")
+    for root, dirs, _ in os.walk(start_path):
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+        
+        if "src" in dirs:
+            potential_path = os.path.join(root, "src", "main", "java")
+            if os.path.exists(potential_path):
+                print(f"✅ [DEBUG] 깊은 경로에서 발견: {potential_path}")
+                return potential_path
+
+    print("❌ [DEBUG] 자바 소스 경로를 찾지 못했습니다. 분석이 제대로 되지 않을 수 있습니다.")
+    return start_path
+
+# ==============================================================================
 # 1. 디렉토리 트리 생성 함수
 # ==============================================================================
 
 def get_project_structure(path, prefix=""):
-    """
-    프로젝트의 디렉토리 구조를 문자열 트리 형태로 반환합니다.
-    """
     if not os.path.exists(path):
         return ""
 
     tree = ""
     try:
-        # 정렬하여 출력 (디렉토리 우선, 그 다음 파일)
+        # 정렬: 디렉토리 우선 표시 옵션은 뺌 (알파벳 순이 깔끔할 수 있음)
+        # 하지만 보기 좋게 하기 위해 폴더와 파일을 섞어서 정렬하되 로직 유지
         items = sorted(os.listdir(path))
-        
-        # 필터링
         items = [i for i in items if i not in IGNORE_DIRS and i not in IGNORE_FILES]
         
         count = len(items)
@@ -99,49 +138,53 @@ def get_project_structure(path, prefix=""):
                 tree += f"{prefix}{connector}📄 {item}\n"
     except PermissionError:
         pass
-        
     return tree
 
 # ==============================================================================
 # 2. Controller 분석 함수
 # ==============================================================================
 
-def summarize_controller(src_path):
-    """
-    Controller 파일을 찾아 API 매핑 정보를 요약합니다.
-    """
+def summarize_controller(search_path):
+    print(f"🔍 [DEBUG] Controller 분석 시작 (탐색 경로: {search_path})")
     summary = ""
-    # 매핑 어노테이션 탐지 정규식 (파라미터 포함)
-    mapping_regex = re.compile(r'@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\s*(\((?:[^{]*?)\))?')
+    # @Annotation( ... ) 형태까지 잡기 위해 re.DOTALL 사용
+    mapping_regex = re.compile(r'@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\s*(\((?:[^)]*?)\))?', re.DOTALL)
     
-    found_controllers = False
+    found_count = 0
+    file_count = 0
 
-    for root, dirs, files in os.walk(src_path):
+    for root, dirs, files in os.walk(search_path):
         for file in files:
             if file.endswith("Controller.java"):
+                file_count += 1
                 full_path = os.path.join(root, file)
-                class_name = file.replace(".java", "")
                 
                 try:
                     with open(full_path, "r", encoding="utf-8") as f:
                         content = f.read()
                         
-                    # 매핑 찾기
                     matches = mapping_regex.findall(content)
+                    class_name = file.replace(".java", "")
                     
                     if matches:
-                        found_controllers = True
+                        found_count += 1
                         summary += f"### 📌 {class_name}\n"
                         for method, params in matches:
-                            # 파라미터 정제 (줄바꿈 제거 및 공백 정리)
-                            clean_params = params.replace('"', '').replace('\n', '').strip() if params else ""
+                            # 파라미터 내 줄바꿈/공백 정리
+                            clean_params = params.replace('\n', ' ').replace('"', '').strip()
+                            clean_params = re.sub(r'\s+', ' ', clean_params)
                             summary += f"- **{method}** {clean_params}\n"
                         summary += "\n"
+                    else:
+                        summary += f"### 📌 {class_name}\n- (No API mappings detected)\n\n"
+                        
                 except Exception as e:
-                    print(f"Error reading {file}: {e}")
+                    print(f"❌ Error reading {file}: {e}")
 
-    if not found_controllers:
-        summary = "No Controllers found or parsed."
+    if file_count == 0:
+        return "No Controller files found. (Check if path is correct)"
+    if found_count == 0:
+        return "Controllers found but no mappings extracted."
         
     return summary
 
@@ -149,51 +192,48 @@ def summarize_controller(src_path):
 # 3. Service 분석 함수
 # ==============================================================================
 
-def summarize_service(src_path):
-    """
-    Service 파일을 찾아 주요 메서드 정보를 요약합니다.
-    """
+def summarize_service(search_path):
+    print(f"🔍 [DEBUG] Service 분석 시작 (탐색 경로: {search_path})")
     summary = ""
-    # public 메서드 탐지 정규식 (반환타입 메서드명)
-    method_regex = re.compile(r'public\s+[\w<>?\[\]]+\s+(\w+)\s*\(')
+    # public 반환타입 메서드명(인자) 패턴
+    method_regex = re.compile(r'public\s+(?:[\w<>?\[\]]+\s+)+(\w+)\s*\(', re.DOTALL)
     
-    found_services = False
+    found_count = 0
 
-    for root, dirs, files in os.walk(src_path):
+    for root, dirs, files in os.walk(search_path):
         for file in files:
-            # ServiceImpl 또는 Service 인터페이스/클래스 탐색
-            if file.endswith("Service.java") or file.endswith("ServiceImpl.java"):
-                # 인터페이스는 제외하고 구현체나 클래스만 보고 싶다면 조건을 수정 가능
+            # ServiceImpl.java 또는 Service.java
+            if (file.endswith("Service.java") or file.endswith("ServiceImpl.java")):
                 full_path = os.path.join(root, file)
-                class_name = file.replace(".java", "")
                 
                 try:
                     with open(full_path, "r", encoding="utf-8") as f:
                         content = f.read()
 
-                    # @Service 어노테이션이 있거나 이름이 ServiceImpl인 경우만
-                    if "@Service" in content or "ServiceImpl" in file:
+                    # 인터페이스나 클래스인지 확인
+                    if "interface " in content or "class " in content:
+                        class_name = file.replace(".java", "")
+                        
                         matches = method_regex.findall(content)
-                        # 생성자나 기본적인 메서드 제외 필터링 가능
-                        matches = [m for m in matches if m not in ['toString', 'hashCode', 'equals']]
+                        exclude_methods = {'toString', 'hashCode', 'equals', 'wait', 'notify', 'notifyAll', 'getClass'}
+                        matches = [m for m in matches if m not in exclude_methods]
 
                         if matches:
-                            found_services = True
+                            found_count += 1
                             summary += f"### 🧩 {class_name}\n"
-                            # 너무 많으면 5개까지만 표시 등 조절 가능, 여기선 전부 나열
                             for method_name in matches:
                                 summary += f"- `{method_name}()`\n"
                             summary += "\n"
                 except Exception as e:
-                    print(f"Error reading {file}: {e}")
+                    print(f"❌ Error reading {file}: {e}")
                     
-    if not found_services:
-        summary = "No Services found."
+    if found_count == 0:
+        return "No Services found."
 
     return summary
 
 # ==============================================================================
-# 4. 목차 생성 및 메인 실행
+# 4. 메인 실행
 # ==============================================================================
 
 def build_table_of_contents():
@@ -206,18 +246,20 @@ def build_table_of_contents():
 
 def main():
     root = "."
-    # Spring Boot 표준 소스 경로
-    src_path = os.path.join(root, "src", "main", "java")
     
-    print("⏳ 분석 시작...")
+    # [수정됨] backend 폴더 우선 탐색 로직 적용
+    java_src_path = find_java_source_root(root)
     
-    # 각 섹션 데이터 생성
+    print(f"🚀 분석 시작 경로: {java_src_path}")
+    
+    # 프로젝트 구조는 전체 루트 기준으로 보여줌 (backend 폴더 포함)
     structure = get_project_structure(root)
-    controller_summary = summarize_controller(src_path)
-    service_summary = summarize_service(src_path)
+    
+    # 자바 분석은 java_src_path 기준
+    controller_summary = summarize_controller(java_src_path)
+    service_summary = summarize_service(java_src_path)
     toc = build_table_of_contents()
     
-    # 템플릿 포맷팅
     readme_content = README_TEMPLATE.format(
         table_of_contents=toc,
         project_structure=structure,
@@ -226,7 +268,6 @@ def main():
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
     
-    # 파일 쓰기
     with open("README.md", "w", encoding="utf-8") as f:
         f.write(readme_content)
     
