@@ -26,7 +26,7 @@ Silver Bridge Backend는 고령층의 디지털 소외를 해소하기 위해
 - **Spring Security + JWT**
 - **JPA/Hibernate**
 - **MariaDB**
-- **AWS (EC2, Nginx)**
+- **AWS (EC2, S3, Route53, Nginx)**
 - **FastAPI (ASR/STT 서버)**
 
 ---
@@ -34,11 +34,6 @@ Silver Bridge Backend는 고령층의 디지털 소외를 해소하기 위해
 # 📁 1. 프로젝트 구조
 <pre>
 └── 📁 backend
-    ├── 📁 __pycache__
-    │   ├── 📄 asr_server.cpython-313.pyc
-    │   ├── 📄 asr_server_dummy.cpython-313.pyc
-    │   ├── 📄 emotion_server.cpython-313.pyc
-    │   └── 📄 emotion_server_dummy.cpython-313.pyc
     ├── 📄 asr_server.py
     ├── 📄 build.gradle.kts
     ├── 📄 docker-compose.yml
@@ -168,21 +163,147 @@ Silver Bridge Backend는 고령층의 디지털 소외를 해소하기 위해
 ---
 
 # 🧭 2. Controller & API Summary
-No Controllers found or parsed.
+### 📌 EmotionController
+- **RequestMapping** (/api/emotions)
+- **GetMapping** (/today/top)
+- **GetMapping** (/weekly/last)
+- **GetMapping** (/month/current)
+- **GetMapping** (/month/previous)
+
+### 📌 SocialInfoController
+- **RequestMapping** (/api/users/social)
+- **PostMapping** (/register-final)
+
+### 📌 KakaoAuthController
+- **RequestMapping** (/api/users/social)
+- **PostMapping** (/kakao)
+
+### 📌 SmsController
+- **RequestMapping** (/api/sms)
+- **PostMapping** (/send)
+- **PostMapping** (/verify)
+
+### 📌 UserController
+- **RequestMapping** (/api/users)
+- **PostMapping** (/join)
+- **PostMapping** (/login)
+- **PostMapping** (/logout)
+- **GetMapping** (/me)
+
+### 📌 HealthCheckController
+- **RequestMapping** (/api/health)
+- **GetMapping** 
+
+### 📌 CalendarController
+- **RequestMapping** (/api/calendar)
+- **GetMapping** 
+- **GetMapping** (/schedules)
+- **PostMapping** (/add)
+- **PutMapping** (/schedule/{scheduleId})
+- **DeleteMapping** (/schedule/{scheduleId})
+- **PatchMapping** (/schedule/{scheduleId}/complete)
+- **GetMapping** (/alarm/check)
+
+### 📌 MemberMyPageController
+- **RequestMapping** (/api/mypage/member)
+- **PatchMapping** (/text-size)
+- **PatchMapping** (/region)
+- **PatchMapping** (/alarm)
+- **GetMapping** (/guardian-info)
+
+### 📌 MyPageCommonController
+- **RequestMapping** (/api/mypage)
+- **PatchMapping** (/password-update)
+- **PatchMapping** (/alarm)
+
+### 📌 GuardianController
+- **RequestMapping** (/api/mypage/nok)
+- **PostMapping** (/connect)
+- **GetMapping** (/elder-info)
+
+### 📌 ChatController
+- **RequestMapping** (/api/chatbot)
+- **PostMapping** (/text)
+- **PostMapping** (value = /voice, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+- **GetMapping** (/history/{sessionId})
+- **GetMapping** (/sessions)
+- **DeleteMapping** (/session/{sessionId})
+
+
 
 ---
 
 # 🧩 3. Service Layer Summary
-No Services found.
+### 🧩 TokenCleanupService
+- `cleanupExpiredTokens()`
+
+### 🧩 EmotionService
+- `getLastWeekEmotionSummary()`
+- `getEmotionSummaryMonthly()`
+- `getTodayTopEmotion()`
+
+### 🧩 KakaoService
+- `getKakaoAccessToken()`
+- `getKakaoProfile()`
+
+### 🧩 SmsService
+- `sendVerificationCode()`
+
+### 🧩 CustomUserDetailsService
+- `loadUserByUsername()`
+
+### 🧩 UserService
+- `join()`
+- `socialLoginOrJoin()`
+- `completeSocialRegistration()`
+- `generateTokens()`
+- `generateTokens()`
+- `logout()`
+- `getUserInfo()`
+- `findByPhoneNumber()`
+
+### 🧩 ConnectElderService
+- `connectElder()`
+
+### 🧩 ElderAccessService
+- `getAccessibleElderId()`
+
+### 🧩 CalendarServiceImpl
+- `getCalendarDates()`
+- `getSchedules()`
+- `addSchedule()`
+- `updateSchedule()`
+- `deleteSchedule()`
+- `deleteScheduleByTitle()`
+- `toggleScheduleCompletion()`
+- `checkAlarm()`
+
+### 🧩 MemberMyPageService
+- `updateTextSize()`
+- `updateRegion()`
+
+### 🧩 MyPageService
+- `updatePassword()`
+- `updateAlarm()`
+
+### 🧩 ChatService
+- `handleText()`
+- `handleVoice()`
+- `getHistory()`
+- `getSessions()`
+- `deleteSession()`
+
+
 
 ---
 
 # 🛠 4. Build & Run
 ```bash
+cd backend
 ./gradlew clean build
 java -jar build/libs/silverbridge-backend.jar
 # Test
 ./gradlew test
 ```
 
-> **Last Updated:** 2025-11-30 10:52:15
+> **Last Updated:** 2025-11-30 10:58:05
