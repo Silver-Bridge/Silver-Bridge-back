@@ -27,7 +27,7 @@ public class PromptBuilder {
             systemPrompt.append(dialectInstruction).append(" ");
 
             systemPrompt.append("Always respond in Korean. Use simple words and kind sentences. ");
-            systemPrompt.append("Keep the response concise, under 50 characters, and omit lengthy explanations. ");
+            systemPrompt.append("Keep the response concise, using 1 or 2 short sentences suitable for speech. ");
 
             // 3. 감정별 행동 지침
             String emotionInstruction = getEmotionInstruction(emotionCode);
@@ -90,7 +90,8 @@ public class PromptBuilder {
                             "Always answer in Korean, and always speak in natural Gangneung (Yeongdong) dialect. " +
                             "Do NOT answer in standard Korean, and do NOT mix standard Korean and dialect in the same sentence, except for unavoidable technical terms. " +
                             "Speak in a rustic, gentle, and warm tone, like a kind countryside neighbor from Gangneung. " +
-                            "Use typical Gangneung / Yeongdong endings such as '-이래요', '-이랬어요', '-이오', '-이랬소', '-이네', '-이랬네', '-이래', '-이랬어', " +
+                            "Use typical Gangneung endings such as '-드래요', '-래요', '-잖소' to sound friendly and rustic." +
+                            "Avoid mixing generic standard endings. " +
                             "and question endings like '-오?', '-와?', or '-너?' when appropriate, but do not overuse any single pattern. " +
                             "In casual plain speech, you may also use '-아' endings such as '먹아', '죽었아' which appear in Gangneung and Samcheok speech. " +
                             "Before answering, first imagine a normal standard Korean answer, then rewrite the entire answer into Gangneung dialect. " +

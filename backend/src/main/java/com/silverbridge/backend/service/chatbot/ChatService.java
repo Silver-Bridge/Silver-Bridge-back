@@ -9,15 +9,16 @@ import com.silverbridge.backend.domain.chatbot.ChatSession;
 import com.silverbridge.backend.repository.chatbot.ChatMessageRepository;
 import com.silverbridge.backend.repository.chatbot.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.AccessControlException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -39,44 +40,29 @@ public class ChatService {
     // 텍스트 입력 처리
     @Transactional
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
-        // 세션 조회/생성 (여기서 regionCode가 세션에 저장됨)
         ChatSession session = upsertSession(userId, req.getSessionId(), req.getRegionCode());
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
 
         String originalText = req.getText();
         String emotion = emotionClient.analyze(originalText);
 
-        // 유저 메시지 저장
         saveMessage(session, ChatMessage.Role.USER, originalText, emotion);
-
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, originalText);
 
-        // [▼ 핵심 수정] session.getRegionCode()를 추가하여 PromptBuilder에 전달
         List<MessageDto> prompt = promptBuilder.build(
-                history,
-                contextualUserMsg,
-                emotion,
-                session.getRegionCode(), // <--- 여기 추가됨!
-                seniorFriendly
+                history, contextualUserMsg, emotion, session.getRegionCode(), seniorFriendly
         );
 
-        // LLM 호출
         String reply = llmClient.chat(prompt, seniorFriendly);
-
-        // 제목 생성
         generateTitleIfNeeded(session, originalText, reply);
-
-        // 챗봇 응답 저장
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
 
-        // TTS 변환 (사투리가 섞인 텍스트를 음성으로)
+        // [수정] regionCode만 넘깁니다. (User 객체 사용 X)
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
-
-        List<MessageDto> updated = latestHistory(session.getId(), historyLimit);
 
         return ChatTextResponse.builder()
                 .sessionId(session.getId())
-                .history(updated)
+                .history(latestHistory(session.getId(), historyLimit))
                 .replyAudioUrl(replyAudioUrl)
                 .build();
     }
@@ -90,46 +76,38 @@ public class ChatService {
         String emotion = emotionClient.analyze(asrText);
 
         saveMessage(session, ChatMessage.Role.USER, asrText, emotion);
-
         String contextualUserMsg = String.format("사용자 (감정: %s): %s", emotion, asrText);
-        List<MessageDto> history = latestHistory(session.getId(), historyLimit);
 
-        // [▼ 핵심 수정] session.getRegionCode()를 추가하여 PromptBuilder에 전달
         List<MessageDto> prompt = promptBuilder.build(
-                history,
-                contextualUserMsg,
-                emotion,
-                session.getRegionCode(), // <--- 여기 추가됨!
-                seniorFriendly
+                latestHistory(session.getId(), historyLimit),
+                contextualUserMsg, emotion, session.getRegionCode(), seniorFriendly
         );
 
         String reply = llmClient.chat(prompt, seniorFriendly);
-
         generateTitleIfNeeded(session, asrText, reply);
-
         saveMessage(session, ChatMessage.Role.ASSISTANT, reply, null);
 
+        // [수정] regionCode만 넘깁니다.
         String replyAudioUrl = ttsClient.synthesize(reply, session.getRegionCode());
-
-        List<MessageDto> updatedHistory = latestHistory(session.getId(), historyLimit);
 
         return ChatVoiceResponse.builder()
                 .sessionId(session.getId())
                 .userId(userId)
                 .title(session.getTitle())
-                .history(updatedHistory)
+                .history(latestHistory(session.getId(), historyLimit))
                 .replyAudioUrl(replyAudioUrl)
                 .build();
     }
 
-    // ... (이하 나머지 메서드는 기존과 동일) ...
+    // [이하 기존 로직 유지 + 예외 처리 수정]
 
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
         ChatSession s = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
         if (!Objects.equals(s.getUserId(), userId)) {
-            throw new AccessControlException("권한 없음");
+            // [수정] AccessControlException -> SecurityException
+            throw new SecurityException("권한 없음");
         }
         return latestHistory(sessionId, Math.max(historyLimit, 50));
     }
@@ -144,7 +122,8 @@ public class ChatService {
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
         if (!Objects.equals(session.getUserId(), userId)) {
-            throw new AccessControlException("본인 세션만 삭제할 수 있습니다.");
+            // [수정] AccessControlException -> SecurityException
+            throw new SecurityException("본인 세션만 삭제할 수 있습니다.");
         }
         messageRepo.deleteAll(messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId));
         sessionRepo.delete(session);
@@ -156,7 +135,8 @@ public class ChatService {
             session = sessionRepo.findById(sessionId)
                     .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
             if (!Objects.equals(session.getUserId(), userId)) {
-                throw new AccessControlException("권한 없음");
+                // [수정] AccessControlException -> SecurityException
+                throw new SecurityException("권한 없음");
             }
             if (regionCode != null && !regionCode.isBlank()) {
                 session.setRegionCode(regionCode);
@@ -164,12 +144,12 @@ public class ChatService {
         } else {
             session = new ChatSession();
             session.setUserId(userId);
-            // regionCode가 없으면 기본값 "std"(표준어) 설정
             session.setRegionCode(regionCode == null || regionCode.isBlank() ? "std" : regionCode);
         }
         return sessionRepo.save(session);
     }
 
+    // ... (나머지 헬퍼 메소드들은 변경 없음) ...
     private void saveMessage(ChatSession s, ChatMessage.Role role, String content, String emotion) {
         ChatMessage m = new ChatMessage();
         m.setSession(s);
@@ -193,21 +173,15 @@ public class ChatService {
 
     private void generateTitleIfNeeded(ChatSession session, String userMsg, String botResponse) {
         if (session.getTitle() != null) return;
-
         try {
             List<MessageDto> titlePrompt = promptBuilder.buildTitlePrompt(userMsg, botResponse);
             String generatedTitle = llmClient.chat(titlePrompt, false);
-
             generatedTitle = generatedTitle.replace("\"", "").replace("'", "").trim();
-            if (generatedTitle.length() > 50) {
-                generatedTitle = generatedTitle.substring(0, 50);
-            }
-
+            if (generatedTitle.length() > 50) generatedTitle = generatedTitle.substring(0, 50);
             session.updateTitle(generatedTitle);
             sessionRepo.save(session);
-
         } catch (Exception e) {
-            System.err.println("채팅방 제목 생성 실패: " + e.getMessage());
+            log.warn("채팅방 제목 생성 실패: {}", e.getMessage());
         }
     }
 }
