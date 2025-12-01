@@ -10,6 +10,7 @@ import com.silverbridge.backend.repository.chatbot.ChatMessageRepository;
 import com.silverbridge.backend.repository.chatbot.ChatSessionRepository;
 import com.silverbridge.backend.service.calendar.CalendarService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -27,6 +29,8 @@ public class ChatService {
     // 1. 챗봇 핵심 컴포넌트
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
+    private final UserRepository userRepo;
+
     private final AsrClient asrClient;
     private final LlmClient llmClient;
     private final PromptBuilder promptBuilder;
@@ -36,7 +40,6 @@ public class ChatService {
 
     // 2. 기능 수행을 위한 서비스
     private final CalendarService calendarService;
-    private final UserRepository userRepository;
 
     @Value("${chatbot.senior-friendly:true}")
     private boolean seniorFriendly;
@@ -68,31 +71,69 @@ public class ChatService {
     }
 
     /**
-     * [핵심] 공통 처리 로직 (Logic Hub)
+     * [핵심] 공통 처리 로직 (TTS용 Raw 텍스트와 화면용 Clean 텍스트 분리)
      */
     private ChatTextResponse processChat(Long userId, Long sessionId, String regionCode, String userText) {
+        // 1. 사용자 및 세션 조회
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
         ChatSession session = upsertSession(userId, sessionId, regionCode);
 
-        String emotion = emotionClient.analyze(userText);
+        // 2. 감정 분석
+        String emotion = emotionClient.analyze(userText); // 감정 분석 결과 (예: "0", "1" ...)
         saveMessage(session, ChatMessage.Role.USER, userText, emotion);
 
-        String botReply = "";
+        String botReplyRaw = "";   // [TTS용] 쉼표, 말줄임표가 포함된 버전
+        String botReplyClean = ""; // [화면/DB용] 깔끔하게 다듬어진 버전
 
-        // 명령 의도 파악
+        // 3. 명령 의도 파악
         ScheduleCommandDto command = llmClient.extractCommand(userText);
-        System.out.println("🤖 감지된 명령: " + command);
+        log.info("🤖 감지된 명령: {}", command);
 
         if (command.getAction() != ScheduleCommandDto.Action.NONE) {
-            // 명령 실행 (일정/알림)
-            botReply = executeCommand(userId, command, session.getRegionCode());
+            // 명령 실행 결과는 보통 깔끔하므로 Raw/Clean 동일하게 처리
+            botReplyClean = executeCommand(userId, command, session.getRegionCode());
+            botReplyRaw = botReplyClean;
         } else {
-            // 일반 대화 (검색 + LLM)
-            botReply = generateGeneralReply(session, userText, emotion);
+            // [일반 대화]
+            List<SearchResDto> searchResults = null;
+            if (promptBuilder.isSearchNeeded(userText)) {
+                searchResults = naverSearchClient.search(userText);
+            }
+
+            String contextMsg = String.format("사용자 (감정: %s): %s", emotion, userText);
+
+            List<MessageDto> prompt = promptBuilder.build(
+                    latestHistory(session.getId(), historyLimit),
+                    contextMsg,
+                    emotion,
+                    session.getRegionCode(),
+                    seniorFriendly,
+                    searchResults
+            );
+
+            // LLM은 프롬프트 지시에 따라 '쉼표가 가득한' 텍스트를 줍니다.
+            botReplyRaw = llmClient.chat(prompt, seniorFriendly);
+
+            // [✨ 핵심] 화면에 보여줄 때는 쉼표/말줄임표를 청소합니다.
+            botReplyClean = cleanTextForDisplay(botReplyRaw);
         }
 
-        generateTitleIfNeeded(session, userText, botReply);
-        saveMessage(session, ChatMessage.Role.ASSISTANT, botReply, null);
-        String replyAudioUrl = ttsClient.synthesize(botReply, session.getRegionCode());
+        // 4. 제목 생성
+        generateTitleIfNeeded(session, userText, botReplyClean);
+
+        // 5. 봇 응답 저장 (Clean 버전 저장)
+        saveMessage(session, ChatMessage.Role.ASSISTANT, botReplyClean, null);
+
+        // 6. [수정됨] TTS 변환 요청 (5번째 인자로 emotion 추가!)
+        String replyAudioUrl = ttsClient.synthesize(
+                botReplyRaw,
+                session.getRegionCode(),
+                user.getGenderCode(),
+                user.getAge(),
+                emotion // <--- 여기가 추가되었습니다! (에러 해결)
+        );
+
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
 
         return ChatTextResponse.builder()
@@ -105,15 +146,31 @@ public class ChatService {
     }
 
     /**
+     * [추가] TTS용 문장부호를 제거하여 화면용 텍스트 생성
+     */
+    private String cleanTextForDisplay(String rawText) {
+        if (rawText == null) return "";
+
+        return rawText
+                .replace(", ", " ")
+                .replace(",", " ")
+                .replace("...", ".")
+                .replace("..", ".")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    /**
      * [기능 실행기]
      */
     private String executeCommand(Long userId, ScheduleCommandDto cmd, String region) {
         try {
             boolean isGyeongsang = "gs".equalsIgnoreCase(region);
+            String endingQuestion = isGyeongsang ? "예?" : "요?";
 
             switch (cmd.getAction()) {
                 case ADD:
-                    if (cmd.getStartDateTime() == null) return "날짜와 시간을 정확히 말씀해 주시겠어" + (isGyeongsang ? "예?" : "요?");
+                    if (cmd.getStartDateTime() == null) return "날짜와 시간을 정확히 말씀해 주시겠어" + endingQuestion;
                     CalendarDtos.CreateScheduleRequest req = CalendarDtos.CreateScheduleRequest.builder()
                             .title(cmd.getTitle())
                             .startAt(LocalDateTime.parse(cmd.getStartDateTime()))
@@ -125,7 +182,7 @@ public class ChatService {
                     return "일정을 등록했습니더. (" + cmd.getTitle() + ")";
 
                 case CHECK:
-                    if (cmd.getTargetDate() == null) return "언제 일정을 확인하고 싶으신가" + (isGyeongsang ? "예?" : "요?");
+                    if (cmd.getTargetDate() == null) return "언제 일정을 확인하고 싶으신가" + endingQuestion;
                     LocalDate date = LocalDate.parse(cmd.getTargetDate());
                     List<CalendarDtos.ScheduleItem> list = calendarService.getSchedules(userId, date);
                     if (list.isEmpty()) return "그날은 일정이 없네예. 푹 쉬이소.";
@@ -138,60 +195,33 @@ public class ChatService {
 
                 case DELETE:
                     if (cmd.getTitle() == null || cmd.getTitle().isBlank()) {
-                        return "어떤 일정을 지울지 말씀해 주시겠어" + (isGyeongsang ? "예?" : "요?");
+                        return "어떤 일정을 지울지 말씀해 주시겠어" + endingQuestion;
                     }
                     return calendarService.deleteScheduleByTitle(userId, cmd.getTitle());
 
                 case ALARM:
-                    User user = userRepository.findById(userId)
+                    User user = userRepo.findById(userId)
                             .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
                     user.setAlarmActive(cmd.getAlarmOn());
-                    userRepository.save(user);
+                    userRepo.save(user);
                     return cmd.getAlarmOn() ? "알림을 켰습니더." : "알림을 껐습니더. 푹 주무이소.";
 
                 default:
                     return "죄송합니더. 제가 잘 못 알아들었네예.";
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("명령 실행 중 오류", e);
             return "명령을 수행하다가 문제가 좀 생겼네예. 다시 말씀해 주시겠어예?";
         }
     }
 
-    /**
-     * [일반 대화 생성기]
-     */
-    private String generateGeneralReply(ChatSession session, String userText, String emotion) {
-        List<MessageDto> history = latestHistory(session.getId(), historyLimit);
-        List<SearchResDto> searchResults = null;
-
-        if (promptBuilder.isSearchNeeded(userText)) {
-            System.out.println("🔎 검색 실행: " + userText);
-            searchResults = naverSearchClient.search(userText);
-        }
-
-        String contextMsg = String.format("사용자 (감정: %s): %s", emotion, userText);
-        List<MessageDto> prompt = promptBuilder.build(
-                history,
-                contextMsg,
-                emotion,
-                session.getRegionCode(),
-                seniorFriendly,
-                searchResults
-        );
-
-        return llmClient.chat(prompt, seniorFriendly);
-    }
-
-    // ▼▼▼ [이 부분이 누락되어 에러가 났었습니다! 다시 추가함] ▼▼▼
+    // --- Helper Methods ---
 
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {
         ChatSession s = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
-        if (!Objects.equals(s.getUserId(), userId)) {
-            throw new SecurityException("권한 없음");
-        }
+        if (!Objects.equals(s.getUserId(), userId)) throw new SecurityException("권한 없음");
         return latestHistory(sessionId, Math.max(historyLimit, 50));
     }
 
@@ -204,14 +234,10 @@ public class ChatService {
     public void deleteSession(Long userId, Long sessionId) {
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션 없음"));
-        if (!Objects.equals(session.getUserId(), userId)) {
-            throw new SecurityException("본인 세션만 삭제할 수 있습니다.");
-        }
+        if (!Objects.equals(session.getUserId(), userId)) throw new SecurityException("본인 세션만 삭제할 수 있습니다.");
         messageRepo.deleteAll(messageRepo.findTop50BySessionIdOrderByCreatedAtDesc(sessionId));
         sessionRepo.delete(session);
     }
-
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     private ChatSession upsertSession(Long userId, Long sessionId, String regionCode) {
         ChatSession session;
@@ -257,7 +283,7 @@ public class ChatService {
             session.updateTitle(generatedTitle);
             sessionRepo.save(session);
         } catch (Exception e) {
-            System.err.println("제목 생성 실패: " + e.getMessage());
+            log.warn("제목 생성 실패: {}", e.getMessage());
         }
     }
 }

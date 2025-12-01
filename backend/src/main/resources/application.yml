@@ -75,6 +75,11 @@ naver:
   client:
     id: ${NAVER_CLIENT_ID}
     secret: ${NAVER_SECRET}
+  clova:
+    url: https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts
+    client-id: ${NAVER_CLOVA_CLIENT_ID}
+    client-secret: ${NAVER_CLOVA_CLIENT_SECRET}
+    voice: "nara"
 
 
 sms:
