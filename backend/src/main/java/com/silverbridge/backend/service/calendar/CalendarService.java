@@ -22,6 +22,8 @@ public interface CalendarService {
 
     // 기존 일정 삭제
     void deleteSchedule(Long elderId, Long scheduleId);
+    // 제목으로 삭제
+    String deleteScheduleByTitle(Long userId, String title);
 
     // 일정 완료 상태 체크
     void toggleScheduleCompletion(Long elderId, Long scheduleId);

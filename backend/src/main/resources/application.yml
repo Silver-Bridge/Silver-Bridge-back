@@ -31,7 +31,7 @@ spring:
       chat:
         options:
           model: gpt-4o          # gpt 모델
-          max-tokens: 128
+          max-tokens: 1000
           temperature: 0.7
 
 server:
@@ -71,14 +71,18 @@ kakao:
   token-url: https://kauth.kakao.com/oauth/token
   user-info-url: https://kapi.kakao.com/v2/user/me
 
-sms:
-  api-key: ${SMS_API_KEY}
-  api-secret: ${SMS_API_SECRET}
-  sender: ${SMS_SENDER_NUMBER} # 발신자 번호${SMS_SENDER_NUMBER} # 발신자 번호
-
 naver:
+  client:
+    id: ${NAVER_CLIENT_ID}
+    secret: ${NAVER_SECRET}
   clova:
     url: https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts
     client-id: ${NAVER_CLOVA_CLIENT_ID}
     client-secret: ${NAVER_CLOVA_CLIENT_SECRET}
     voice: "nara"
+
+
+sms:
+  api-key: ${SMS_API_KEY}
+  api-secret: ${SMS_API_SECRET}
+  sender: ${SMS_SENDER_NUMBER} # 발신자 번호${SMS_SENDER_NUMBER} # 발신자 번호
