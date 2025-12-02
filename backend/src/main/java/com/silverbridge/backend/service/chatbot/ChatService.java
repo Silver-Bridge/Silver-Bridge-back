@@ -154,8 +154,8 @@ public class ChatService {
         return rawText
                 .replace(", ", " ")
                 .replace(",", " ")
-                .replace("...", ".")
-                .replace("..", ".")
+                .replace("...", " ")
+                .replace("..", " ")
                 .replaceAll("\\s+", " ")
                 .trim();
     }
