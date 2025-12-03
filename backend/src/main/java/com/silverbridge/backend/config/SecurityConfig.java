@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/",
                                 "/api/users/join",
                                 "/api/users/login",
+								"/api/users/social/register-final",
 								"/api/users/register-final",
 								"/api/users/social/kakao",
                                 "/api/health",
