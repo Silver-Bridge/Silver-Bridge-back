@@ -28,6 +28,6 @@ public interface CalendarService {
     // 일정 완료 상태 체크
     void toggleScheduleCompletion(Long elderId, Long scheduleId);
     
-    // [▼ 추가] 알람 체크 메서드 정의
+    // 알람 체크 메서드 정의
     List<ScheduleItem> checkAlarm(Long userId);
 }

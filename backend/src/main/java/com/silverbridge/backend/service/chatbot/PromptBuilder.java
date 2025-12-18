@@ -11,14 +11,13 @@ import java.util.stream.Collectors;
 @Component
 public class PromptBuilder {
 
-    // [복구됨] 검색 키워드 정의 (원래 코드에서 가져옴)
+    // 검색 키워드 정의
     private static final String[] SEARCH_KEYWORDS = {
             "복지", "혜택", "지원금", "정책", "센터",
             "추천", "어디", "찾아줘", "알려줘", "병원", "약국",
             "뉴스", "정보", "어떻게"
     };
 
-    // [복구됨] 검색 필요 여부 판단 (원래 코드에서 가져옴)
     public boolean isSearchNeeded(String userMsg) {
         if (userMsg == null || userMsg.isBlank()) return false;
         for (String keyword : SEARCH_KEYWORDS) {
@@ -27,11 +26,6 @@ public class PromptBuilder {
         return false;
     }
 
-    /**
-     * [병합됨] 파라미터 6개 (검색 결과 포함)
-     * - history, userMsg, emotionCode, regionCode, seniorFriendly: 수정 코드 기반
-     * - searchResults: 원래 코드 기반
-     */
     public List<MessageDto> build(List<MessageDto> history, String userMsg, String emotionCode, String regionCode, boolean seniorFriendly, List<SearchResDto> searchResults) {
         List<MessageDto> msgs = new ArrayList<>();
         StringBuilder systemPrompt = new StringBuilder();
@@ -39,20 +33,20 @@ public class PromptBuilder {
         boolean hasSearchInfo = (searchResults != null && !searchResults.isEmpty());
 
         if (seniorFriendly) {
-            // 1. 기본 페르소나 (수정 코드 기반)
+            // 기본 페르소나
             systemPrompt.append("You are 'SilverBridge', a professional and warm-hearted AI companion for seniors. ");
 
-            // 2. [핵심] 지역 코드에 따른 말투(사투리) 지침 적용 (수정 코드 기반)
+            // 지역 코드에 따른 말투(사투리) 지침 적용
             String dialectInstruction = getDialectInstruction(regionCode);
             systemPrompt.append(dialectInstruction).append(" ");
 
-            // 3. [복구됨] 검색 결과(RAG) 주입 및 처리 지침
+            // 검색 결과(RAG) 주입 및 처리 지침
             if (hasSearchInfo) {
                 systemPrompt.append("\n### [Reference Information] ###\n");
                 systemPrompt.append("You MUST answer based on the search results below.\n");
                 systemPrompt.append("1. Extract specific program names, locations, or benefits.\n");
                 systemPrompt.append("2. Do NOT generalize. Mention specific names found in the results.\n");
-                // [중요] 정보는 정확하게 하되, 말투는 위에서 정의한 사투리로 변환 지시
+                // 정보는 정확하게 하되, 말투는 위에서 정의한 사투리로 변환 지시
                 systemPrompt.append("3. IMPORTANT: Convert the explanation into the defined dialect/tone above, but keep the proper nouns (names) accurate.\n");
 
                 for (SearchResDto item : searchResults) {
@@ -61,7 +55,7 @@ public class PromptBuilder {
                 systemPrompt.append("### End of Reference ###\n");
             }
 
-            // 4. 대화 가이드라인 (병합됨)
+            // 대화 가이드라인 (병합됨)
             systemPrompt.append("\n[Response Guidelines]\n");
             systemPrompt.append("- Always respond in Korean. Use simple words and kind sentences.\n");
 
@@ -73,7 +67,7 @@ public class PromptBuilder {
                 systemPrompt.append("- Keep the response concise, using 1 or 2 short sentences suitable for speech.\n");
             }
 
-            // 5. 감정별 행동 지침 (수정 코드 기반)
+            // 감정별 행동 지침 (수정 코드 기반)
             String emotionInstruction = getEmotionInstruction(emotionCode);
             systemPrompt.append("\n\n[Current User State and Response Directive]\n").append(emotionInstruction);
 
@@ -107,9 +101,7 @@ public class PromptBuilder {
         return msgs;
     }
 
-    /**
-     * [수정 코드 유지] 지역 코드별 사투리 지침 (Native Speaker Persona)
-     */
+
     private String getDialectInstruction(String regionCode) {
         if (regionCode == null) regionCode = "std";
 
@@ -148,9 +140,6 @@ public class PromptBuilder {
         };
     }
 
-    /**
-     * [수정 코드 유지 + 피드백 반영] 감정 지침
-     */
     private String getEmotionInstruction(String code) {
         if (code == null) code = "6";
 
@@ -160,7 +149,6 @@ public class PromptBuilder {
             case "2" -> "User is angry. Do not contradict. Acknowledge their anger immediately, then calm them with a composed tone.";
             case "3" -> "User is anxious/fearful. Provide reassurance with a firm, trustworthy tone (e.g., 'Don't worry, I will help').";
             case "4" -> "User is surprised. Use a careful, calm tone to help the user regain composure.";
-            // [피드백 반영] Disgust 처리 개선: 화제 전환보다는 공감 먼저
             case "5" -> "User is expressing disgust/discomfort. Acknowledge their discomfort first, show concern, and then gently suggest a solution.";
             case "6" -> "User is neutral. Introduce friendly, useful daily topics (health, weather) to maintain conversation.";
             default -> "Emotion code is unclear. Respond kindly and warmly.";

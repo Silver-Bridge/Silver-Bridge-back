@@ -115,7 +115,7 @@ public class CalendarController {
                 .build());
     }
 
-    // [▼ 추가] 1분마다 호출될 알람 체크 API
+    // 1분마다 호출될 알람 체크 API
     @GetMapping("/alarm/check")
     public ResponseEntity<?> checkAlarm(Authentication authentication) {
         System.out.println("👉 1. 알람 체크 API 호출됨");

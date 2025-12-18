@@ -29,8 +29,6 @@ public class ChatMessage {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    // [수정] 감정 분석 결과 저장 컬럼
-    // (ASSISTANT 역할은 null일 수 있으므로 nullable = true (기본값))
     @Column(length = 32) // (감정 문자열 길이에 맞게 설정, 예: "불안", "기쁨")
     private String emotion;
 

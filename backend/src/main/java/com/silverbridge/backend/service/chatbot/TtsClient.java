@@ -50,16 +50,16 @@ public class TtsClient {
         if (text == null || text.trim().isEmpty()) return null;
 
         try {
-            // 1. 프로필 생성 (사용자 정보 + 감정 + 사투리 튜닝)
+            // 프로필 생성 (사용자 정보 + 감정 + 사투리 튜닝)
             VoiceProfile profile = getVoiceProfile(regionCode, gender, age, emotionCode);
 
-            // 2. 헤더 설정
+            // 헤더 설정
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             headers.set("X-NCP-APIGW-API-KEY-ID", clientId);
             headers.set("X-NCP-APIGW-API-KEY", clientSecret);
 
-            // 3. 파라미터 조립 (MultiValueMap 사용 권장)
+            // 파라미터 조립
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("speaker", profile.getSpeaker());
             params.add("volume", String.valueOf(profile.getVolume()));
@@ -69,7 +69,7 @@ public class TtsClient {
             params.add("format", "mp3");
             params.add("text", text); // RestTemplate이 자동으로 인코딩 처리해주기도 함 (FormHttpMessageConverter)
 
-            // [핵심] 감정 지원 보이스인 경우에만 파라미터 추가
+            // 감정 지원 보이스인 경우에만 파라미터 추가
             if (profile.getEmotion() != null) {
                 params.add("emotion", String.valueOf(profile.getEmotion()));
                 params.add("emotion-strength", "1"); // 0(약함), 1(보통), 2(강함)
@@ -89,26 +89,20 @@ public class TtsClient {
         return null;
     }
 
-    /**
-     * [보이스 프로필 결정 로직]
-     * 상도, 대성, 고은, 유나 등을 조합하여 최적의 목소리 세팅값 반환
-     */
     private VoiceProfile getVoiceProfile(String regionCode, String gender, int age, String emotionCode) {
         if (regionCode == null) regionCode = "std";
 
         boolean isMale = "M".equalsIgnoreCase(gender);
         boolean isOld = age >= 70; // 70세 이상을 어르신으로 간주
 
-        // 1. 기본 속도 & 톤 설정 (나이가 많을수록 천천히, 중후하게)
+        // 기본 속도 & 톤 설정 (나이가 많을수록 천천히, 중후하게)
         int baseSpeed = isOld ?  1 : 0;  // 2: 꽤 느림 (어르신 듣기 편함)
         int baseAlpha = isOld ? -1 : 0; // -1: 약간 낮은 톤 (신뢰감, 어른스러움)
 
-        // 2. 감정 매핑 (지원 안하는 보이스는 나중에 null 처리됨)
+        // 감정 매핑 (지원 안하는 보이스는 나중에 null 처리됨)
         Integer targetEmotion = mapEmotion(emotionCode);
 
-        // --------------------------------------------------------
-        // A. 경상도 (GS) - 상도(Native) 위주
-        // --------------------------------------------------------
+        // 경상도 (GS) - 상도(Native) 위주
         if ("gs".equalsIgnoreCase(regionCode)) {
             if (isMale) {
                 // [디폴트 남자] 상도 (감정 미지원, 구수한 사투리)
@@ -122,36 +116,31 @@ public class TtsClient {
                         .emotion(null) // 상도는 감정 파라미터 지원 X
                         .build();
             } else {
-                // [경상도 여자] 사투리 여자 보이스가 없으므로 '고은(Pro)'을 튜닝
-                // Pitch를 1(약간 높음)로 주어 억양을 살림
                 return VoiceProfile.builder()
                         .speaker("vgoeun") // 고은 (Pro)
                         .volume(3)
                         .speed(baseSpeed)
                         .pitch(1)
                         .alpha(baseAlpha)
-                        .emotion(targetEmotion) // 감정 지원 O
+                        .emotion(targetEmotion)
                         .build();
             }
         }
 
-        // --------------------------------------------------------
-        // B. 강원도 (GW) - 순박하고 느린 느낌
-        // --------------------------------------------------------
+        // 강원도 (GW) - 순박하고 느린 느낌
         if ("gw".equalsIgnoreCase(regionCode)) {
             if (isMale) {
-                // [강원도 남자] 동현 (Pro) - 신뢰감 + 느리게
+                // 동현 (Pro) - 신뢰감 + 느리게
                 return VoiceProfile.builder()
                         .speaker("ndonghyun") // 동현 (Pro)
                         .volume(3)
                         .speed(baseSpeed + 1) // 강원도는 조금 더 여유있게 (+1)
                         .pitch(0)
                         .alpha(baseAlpha)
-                        .emotion(null) // 동현 Pro 여부 확인 필요(일반 ndonghyun은 감정X, vdonghyun은 O)
-                        // *목록상 ndonghyun 사용 -> 감정 null 처리 안전
+                        .emotion(null) // 동현 Pro
                         .build();
             } else {
-                // [강원도 여자] 유나 (Pro) - 활기차지만 착한 손녀 느낌
+                // 유나 (Pro) - 활기차지만 착한 손녀 느낌
                 return VoiceProfile.builder()
                         .speaker("vyuna")
                         .volume(3)
@@ -163,10 +152,8 @@ public class TtsClient {
             }
         }
 
-        // --------------------------------------------------------
-        // C. 표준어/기타 (STD) - 신뢰감 있는 '대성', '고은'
-        // --------------------------------------------------------
-        // isMale -> 대성(Pro)
+        // 표준어/기타 (STD) - 신뢰감 있는 '대성', '고은'
+        // 대성(Pro)
         if (isMale) {
             return VoiceProfile.builder()
                     .speaker("vdaeseong") // 대성 (Pro) - 감정 지원 O
@@ -177,7 +164,7 @@ public class TtsClient {
                     .emotion(targetEmotion)
                     .build();
         } else {
-            // isFemale -> 고은(Pro)
+            // 고은(Pro)
             return VoiceProfile.builder()
                     .speaker("vgoeun") // 고은 (Pro)
                     .volume(3)
@@ -189,10 +176,7 @@ public class TtsClient {
         }
     }
 
-    /**
-     * 감정 코드 매핑
-     * API 지원: 0(중립), 1(슬픔), 2(기쁨), 3(분노)
-     */
+
     private Integer mapEmotion(String emotionCode) {
         if (emotionCode == null) return null;
 
@@ -200,7 +184,7 @@ public class TtsClient {
             case "0": return 2; // 기쁨 -> Joy(2)
             case "1": return 1; // 슬픔 -> Sorrow(1)
             case "2": return 3; // 화남 -> Anger(3)
-            case "3": return 1; // 불안 -> 떨림 효과가 없으므로 슬픔(1)으로 대체
+            case "3": return 1; // 불안 -> 슬픔(1)
             default: return 0;  // 그 외(평온 등) -> 중립(0)
         }
     }

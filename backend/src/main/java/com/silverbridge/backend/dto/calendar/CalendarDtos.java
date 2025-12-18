@@ -63,7 +63,6 @@ public class CalendarDtos {
         @JsonProperty("alarm_minutes")
         private Integer alarmMinutes;
 
-        // [수정] 완료 여부도 수정 가능하도록 필드 추가
         @JsonProperty("is_completed")
         private Boolean isCompleted;
     }
@@ -115,7 +114,6 @@ public class CalendarDtos {
         @JsonProperty("alarm_minutes")
         private Integer alarmMinutes;
 
-        // [핵심] 이 필드가 있어야 에러가 사라집니다!
         @JsonProperty("is_completed")
         private Boolean isCompleted;
     }

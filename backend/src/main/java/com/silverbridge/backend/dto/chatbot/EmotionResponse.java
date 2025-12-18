@@ -2,11 +2,6 @@ package com.silverbridge.backend.dto.chatbot;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-/**
- * 감정 분석 서버 응답용 DTO ({"emotion": ...})
- * FastAPI 서버로부터 받은 JSON 응답을 매핑
- */
-// DTO에 정의되지 않은 JSON 속성은 무시
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EmotionResponse {
 

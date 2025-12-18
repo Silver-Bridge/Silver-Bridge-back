@@ -40,7 +40,6 @@ public class ChatController {
     @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ChatVoiceResponse> sendVoice(
             @RequestParam("file") MultipartFile file,
-            // [확인] 여기서 regionCode를 받아서 Service로 넘겨줍니다.
             @RequestParam(value = "regionCode", required = false) String regionCode,
             @RequestParam(value = "sessionId", required = false) Long sessionId,
             @RequestParam(value = "testUserId", required = false) Long testUserId,
