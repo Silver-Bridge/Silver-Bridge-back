@@ -22,7 +22,7 @@ public class CalendarServiceImpl implements CalendarService {
     private final CalendarEventRepository eventRepo;
     private final UserRepository userRepo;
 
-    // 1. 월별 일정 조회
+    // 월별 일정 조회
     @Override
     public List<CalendarDateItem> getCalendarDates(Long elderId, int year, int month) {
         LocalDate start = LocalDate.of(year, month, 1);
@@ -41,7 +41,7 @@ public class CalendarServiceImpl implements CalendarService {
                 .collect(Collectors.toList());
     }
 
-    // 2. 특정 날짜 상세 일정 조회
+    // 특정 날짜 상세 일정 조회
     @Override
     public List<ScheduleItem> getSchedules(Long elderId, LocalDate date) {
         return eventRepo.findByUserIdAndStartAtBetween(
@@ -53,7 +53,7 @@ public class CalendarServiceImpl implements CalendarService {
                 .collect(Collectors.toList());
     }
 
-    // 3. 일정 추가
+    // 일정 추가
     @Override
     @Transactional
     public void addSchedule(Long elderId, CreateScheduleRequest req) {
@@ -77,7 +77,7 @@ public class CalendarServiceImpl implements CalendarService {
         eventRepo.save(event);
     }
 
-    // 4. 일정 수정
+    // 일정 수정
     @Override
     @Transactional
     public ScheduleItem updateSchedule(Long elderId, Long scheduleId, UpdateScheduleRequest req) {
@@ -97,7 +97,6 @@ public class CalendarServiceImpl implements CalendarService {
         e.setRepeatType(req.getRepeatType());
         e.setPriority(req.getPriority());
 
-        // [추가된 부분]
         if (req.getIsCompleted() != null) {
             e.setIsCompleted(req.getIsCompleted());
         }
@@ -106,7 +105,7 @@ public class CalendarServiceImpl implements CalendarService {
         return toScheduleItem(eventRepo.save(e));
     }
 
-    // 5. 일정 삭제
+    // 일정 삭제
     @Override
     @Transactional
     public void deleteSchedule(Long elderId, Long scheduleId) {
@@ -124,22 +123,22 @@ public class CalendarServiceImpl implements CalendarService {
     @Override
     @Transactional
     public String deleteScheduleByTitle(Long userId, String title) {
-        // 1. 현재 시간 이후의 일정 중, 제목이 포함된 가장 빠른 일정을 찾음
+        // 현재 시간 이후의 일정 중, 제목이 포함된 가장 빠른 일정을 찾음
         CalendarEvent event = eventRepo.findFirstByUserIdAndTitleContainingAndStartAtAfterOrderByStartAtAsc(
                 userId, title, LocalDateTime.now()
         ).orElse(null);
 
-        // 2. 없으면 실패 메시지
+        // 없으면 실패 메시지
         if (event == null) {
             return "삭제할 일정을 못 찾았습니더. (" + title + ")";
         }
 
-        // 3. 찾았으면 삭제
+        // 찾았으면 삭제
         eventRepo.delete(event);
         return "일정을 삭제했습니더. (" + event.getTitle() + ", " + event.getStartAt().toLocalDate() + ")";
     }
 
-    // 6. [신규 기능] 일정 완료 토글
+    // 일정 완료 토글
     @Override
     @Transactional
     public void toggleScheduleCompletion(Long elderId, Long scheduleId) {
@@ -153,7 +152,7 @@ public class CalendarServiceImpl implements CalendarService {
         e.toggleCompletion();
     }
 
-    // 7. 알람 체크 (1분마다 호출됨)
+    // 알람 체크 (1분마다 호출됨)
     @Override
     @Transactional
     public List<ScheduleItem> checkAlarm(Long userId) {

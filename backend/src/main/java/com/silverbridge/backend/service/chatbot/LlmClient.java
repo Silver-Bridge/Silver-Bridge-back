@@ -24,13 +24,7 @@ public class LlmClient {
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper; // JSON 변환을 위해 주입
 
-    // [기존 chat 메서드는 그대로 유지...]
     public String chat(List<MessageDto> messages, boolean seniorFriendly) {
-        // ... (아까 작성한 코드 그대로 두세요) ...
-        // (생략: 공간 절약을 위해)
-        // 여기에 기존 chat 로직이 있어야 합니다!
-
-        // --- 복붙용 기존 chat 코드 ---
         List<Message> springAiMessages = messages.stream()
                 .map(dto -> {
                     switch (dto.getRole().toLowerCase()) {
@@ -57,13 +51,8 @@ public class LlmClient {
             e.printStackTrace();
             return "죄송합니다. 오류가 발생했습니다.";
         }
-        // -------------------------
     }
 
-    /**
-     * [업그레이드된 메서드] 사용자 의도(Intent) 및 데이터 추출
-     * - 일정 추가/조회/삭제 및 알림 설정까지 분석
-     */
     public ScheduleCommandDto extractCommand(String userText) {
         String systemPrompt = """
             You are an Intent Classification & Data Extraction AI.
@@ -101,7 +90,7 @@ public class LlmClient {
 
         try {
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .withTemperature(0.0F) // 정확도 중요
+                    .withTemperature(0.0F)
                     .build();
 
             Prompt prompt = new Prompt(List.of(

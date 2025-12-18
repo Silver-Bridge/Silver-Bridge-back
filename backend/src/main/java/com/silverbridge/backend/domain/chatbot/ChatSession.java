@@ -19,7 +19,7 @@ public class ChatSession {
     // 세션을 생성한 사용자 ID
     private Long userId;
 
-    // 챗봇 응답에 사용할 지역 방언 코드 ("gs", "jl", "std")
+    // 챗봇 응답에 사용할 지역 방언 코드 ("gs", "gw", "std")
     private String regionCode;
 
     // 챗봇 제목

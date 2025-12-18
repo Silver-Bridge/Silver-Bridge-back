@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatService {
 
-    // 1. 챗봇 핵심 컴포넌트
+    // 챗봇 핵심 컴포넌트
     private final ChatSessionRepository sessionRepo;
     private final ChatMessageRepository messageRepo;
     private final UserRepository userRepo;
@@ -38,7 +38,7 @@ public class ChatService {
     private final TtsClient ttsClient;
     private final NaverSearchClient naverSearchClient;
 
-    // 2. 기능 수행을 위한 서비스
+    // 기능 수행을 위한 서비스
     private final CalendarService calendarService;
 
     @Value("${chatbot.senior-friendly:true}")
@@ -47,13 +47,11 @@ public class ChatService {
     @Value("${chatbot.history-limit:20}")
     private int historyLimit;
 
-    // --- 1. 텍스트 입력 처리 ---
     @Transactional
     public ChatTextResponse handleText(Long userId, ChatTextRequest req) {
         return processChat(userId, req.getSessionId(), req.getRegionCode(), req.getText());
     }
 
-    // --- 2. 음성 입력 처리 ---
     @Transactional
     public ChatVoiceResponse handleVoice(Long userId, String regionCode, MultipartFile file, Long sessionId) {
         ChatSession session = upsertSession(userId, sessionId, regionCode);
@@ -70,32 +68,27 @@ public class ChatService {
                 .build();
     }
 
-    /**
-     * [핵심] 공통 처리 로직 (TTS용 Raw 텍스트와 화면용 Clean 텍스트 분리)
-     */
     private ChatTextResponse processChat(Long userId, Long sessionId, String regionCode, String userText) {
-        // 1. 사용자 및 세션 조회
+        // 사용자 및 세션 조회
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
         ChatSession session = upsertSession(userId, sessionId, regionCode);
 
-        // 2. 감정 분석
+        // 감정 분석
         String emotion = emotionClient.analyze(userText); // 감정 분석 결과 (예: "0", "1" ...)
         saveMessage(session, ChatMessage.Role.USER, userText, emotion);
 
         String botReplyRaw = "";   // [TTS용] 쉼표, 말줄임표가 포함된 버전
         String botReplyClean = ""; // [화면/DB용] 깔끔하게 다듬어진 버전
 
-        // 3. 명령 의도 파악
+        // 명령 의도 파악
         ScheduleCommandDto command = llmClient.extractCommand(userText);
         log.info("🤖 감지된 명령: {}", command);
 
         if (command.getAction() != ScheduleCommandDto.Action.NONE) {
-            // 명령 실행 결과는 보통 깔끔하므로 Raw/Clean 동일하게 처리
             botReplyClean = executeCommand(userId, command, session.getRegionCode());
             botReplyRaw = botReplyClean;
         } else {
-            // [일반 대화]
             List<SearchResDto> searchResults = null;
             if (promptBuilder.isSearchNeeded(userText)) {
                 searchResults = naverSearchClient.search(userText);
@@ -112,26 +105,24 @@ public class ChatService {
                     searchResults
             );
 
-            // LLM은 프롬프트 지시에 따라 '쉼표가 가득한' 텍스트를 줍니다.
             botReplyRaw = llmClient.chat(prompt, seniorFriendly);
 
-            // [✨ 핵심] 화면에 보여줄 때는 쉼표/말줄임표를 청소합니다.
             botReplyClean = cleanTextForDisplay(botReplyRaw);
         }
 
-        // 4. 제목 생성
+        // 제목 생성
         generateTitleIfNeeded(session, userText, botReplyClean);
 
-        // 5. 봇 응답 저장 (Clean 버전 저장)
+        // 봇 응답 저장 (Clean 버전 저장)
         saveMessage(session, ChatMessage.Role.ASSISTANT, botReplyClean, null);
 
-        // 6. [수정됨] TTS 변환 요청 (5번째 인자로 emotion 추가!)
+        // TTS 변환 요청
         String replyAudioUrl = ttsClient.synthesize(
                 botReplyRaw,
                 session.getRegionCode(),
                 user.getGenderCode(),
                 user.getAge(),
-                emotion // <--- 여기가 추가되었습니다! (에러 해결)
+                emotion
         );
 
         List<MessageDto> history = latestHistory(session.getId(), historyLimit);
@@ -145,9 +136,6 @@ public class ChatService {
                 .build();
     }
 
-    /**
-     * [추가] TTS용 문장부호를 제거하여 화면용 텍스트 생성
-     */
     private String cleanTextForDisplay(String rawText) {
         if (rawText == null) return "";
 
@@ -160,9 +148,7 @@ public class ChatService {
                 .trim();
     }
 
-    /**
-     * [기능 실행기]
-     */
+
     private String executeCommand(Long userId, ScheduleCommandDto cmd, String region) {
         try {
             boolean isGyeongsang = "gs".equalsIgnoreCase(region);
@@ -215,7 +201,6 @@ public class ChatService {
         }
     }
 
-    // --- Helper Methods ---
 
     @Transactional(readOnly = true)
     public List<MessageDto> getHistory(Long userId, Long sessionId) {

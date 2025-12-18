@@ -32,7 +32,7 @@ public class NaverSearchClient {
         if (query == null || query.isBlank()) return new ArrayList<>();
 
         try {
-            // 정확도를 위해 검색어 뒤에 핵심 키워드 추가
+            // 검색어 뒤에 핵심 키워드 추가
             String keyword = query + " 노인 복지 혜택";
 
             System.out.println("🚀 [NaverAPI] 검색 요청 시작. 키워드: " + keyword);
@@ -56,7 +56,7 @@ public class NaverSearchClient {
 
             ResponseEntity<String> response = restTemplate.exchange(req, String.class);
 
-            // [핵심] 네이버가 준 응답을 콘솔에 그대로 찍어봅니다.
+            // 네이버가 준 응답을 콘솔에 그대로 찍어봅니다.
             System.out.println("✅ [NaverAPI] 응답 수신 완료 (Status: " + response.getStatusCode() + ")");
             System.out.println("📄 [NaverAPI] 응답 본문: " + response.getBody());
 

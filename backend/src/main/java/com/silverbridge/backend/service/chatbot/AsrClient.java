@@ -22,8 +22,8 @@ public class AsrClient {
     @Value("${chatbot.asr.gs-endpoint:http://localhost:9002/asr/transcribe}")
     private String gsEndpoint;
 
-    // 전라도 ASR 모델 엔드포인트
-    @Value("${chatbot.asr.jl-endpoint:http://localhost:9003/asr/transcribe}")
+    // 강원도 ASR 모델 엔드포인트
+    @Value("${chatbot.asr.gw-endpoint:http://localhost:9003/asr/transcribe}")
     private String jlEndpoint;
 
     // HTTP 통신을 위한 RestTemplate
@@ -35,11 +35,9 @@ public class AsrClient {
         String endpoint = pickEndpoint(regionCode);
 
         try {
-            // form-data 형식으로 요청 본문 구성
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", new MultipartInputResource(file));
 
-            // multipart/form-data 헤더 설정
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 

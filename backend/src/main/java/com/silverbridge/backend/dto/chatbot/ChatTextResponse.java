@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor // Builder가 모든 필드를 인식하도록 추가
 public class ChatTextResponse {
 
-    // [추가] 현재 대화를 진행 중인 사용자 ID
+    // 현재 대화를 진행 중인 사용자 ID
     private Long userId;
 
     // 현재 대화 세션 ID
@@ -28,12 +28,5 @@ public class ChatTextResponse {
 
     // [수정] 챗봇의 "음성" 응답 URL
     private String replyAudioUrl;
-
-
-//    // 챗봇의 텍스트 답변
-//    private String replyText;
-//    // [수정됨] 감정 분석 결과 필드
-//    private String emotion;
-
 
 }

@@ -1,9 +1,5 @@
 package com.silverbridge.backend.dto.chatbot;
 
-/**
- * 감정 분석 서버 요청용 DTO ({"text": ...})
- * FastAPI 서버로 전송할 JSON 본문을 매핑
- */
 public class EmotionRequest {
 
     private String text;
